@@ -47,8 +47,9 @@ export function errorText(error) {
 export function money(value) {
   if (value === null || value === undefined) return '—';
   if (value === 0) return '$0';
-  if (value < 0.01) return '<$0.01';
-  return `$${value.toFixed(value < 1 ? 3 : 2)}`;
+  if (value < 0.0001) return '<$0.0001';
+  // Small runs cost fractions of a cent: show them, not "<$0.01".
+  return `$${value.toFixed(value < 0.01 ? 4 : value < 1 ? 3 : 2)}`;
 }
 
 export function number(value) {
