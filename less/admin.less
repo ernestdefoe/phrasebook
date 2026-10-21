@@ -13,6 +13,16 @@
   textarea.FormControl {
     resize: vertical;
   }
+
+  // Long option labels must not push a select past a phone's edge.
+  .Select {
+    max-width: 100%;
+  }
+
+  .Select-input {
+    max-width: 100%;
+    text-overflow: ellipsis;
+  }
 }
 
 .Phrasebook-tabs {
@@ -216,6 +226,8 @@
 }
 
 .Phrasebook-export {
+  // A fieldset is as wide as its content by default; on a phone that is wider than the screen.
+  min-width: 0;
   border: 1px solid var(--control-bg);
   border-radius: var(--border-radius);
   padding: 10px 14px;
