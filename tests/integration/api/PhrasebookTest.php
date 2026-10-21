@@ -332,4 +332,82 @@ class PhrasebookTest extends TestCase
         $this->assertGreaterThanOrEqual(40, $queue->pushed[1][0]);
         $this->assertLessThanOrEqual(42, $queue->pushed[1][0]);
     }
+
+    /**
+     * A model whose call runs $during (the admin clicking something) before it answers.
+     */
+    private function slowModel(\Closure $during): void
+    {
+        $this->http = new class($during) extends FakeHttp {
+            public function __construct(private \Closure $during)
+            {
+                parent::__construct();
+            }
+
+            protected function send(string $method, array $target, array $headers, ?string $body, int $timeout): \Ernestdefoe\Phrasebook\Net\Response
+            {
+                ($this->during)();
+                $items = json_decode(json_decode((string) $body, true)['messages'][1]['content'], true);
+
+                return new \Ernestdefoe\Phrasebook\Net\Response(200, [], (string) json_encode([
+                    'choices' => [['finish_reason' => 'stop', 'message' => ['content' => json_encode(['translations' => array_map(fn ($i) => ['id' => $i['id'], 'text' => 'XX: '.$i['text']], $items)])]]],
+                    'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 10],
+                ]));
+            }
+        };
+    }
+
+    #[Test]
+    public function stopping_a_run_while_a_batch_is_out_stops_it(): void
+    {
+        $this->call('POST', '/keys/openai', 1, ['key' => 'sk-x']);
+        $id = $this->json($this->call('POST', '/runs', 1, ['locales' => ['nl'], 'reasons' => ['missing'], 'provider' => 'openai', 'model' => 'gpt-test', 'budget' => 5]))['runs'][0]['id'];
+
+        $this->slowModel(fn () => $this->database()->table('phrasebook_runs')->where('id', $id)->update(['status' => 'cancelled']));
+        $run = $this->json($this->call('POST', "/runs/$id/step"));
+
+        $this->assertSame('cancelled', $run['run']['status']);
+        $this->assertSame('cancelled', $this->database()->table('phrasebook_runs')->where('id', $id)->value('status'));
+    }
+
+    #[Test]
+    public function deleting_a_run_while_a_batch_is_out_is_not_an_error(): void
+    {
+        $this->call('POST', '/keys/openai', 1, ['key' => 'sk-x']);
+        $id = $this->json($this->call('POST', '/runs', 1, ['locales' => ['nl'], 'reasons' => ['missing'], 'provider' => 'openai', 'model' => 'gpt-test', 'budget' => 5]))['runs'][0]['id'];
+
+        $this->slowModel(function () use ($id) {
+            $this->database()->table('phrasebook_items')->where('run_id', $id)->delete();
+            $this->database()->table('phrasebook_runs')->where('id', $id)->delete();
+        });
+
+        $response = $this->call('POST', "/runs/$id/step");
+        $this->assertNotSame(500, $response->getStatusCode(), (string) $response->getBody());
+        $this->assertSame(0, $this->database()->table('phrasebook_items')->where('run_id', $id)->count());
+    }
+
+    #[Test]
+    public function a_translation_that_no_longer_fits_the_current_english_is_not_saved(): void
+    {
+        $this->call('POST', '/keys/openai', 1, ['key' => 'sk-x']);
+        $this->answerBatches();
+        $id = $this->json($this->call('POST', '/runs', 1, ['locales' => ['nl'], 'namespaces' => ['core'], 'reasons' => ['missing'], 'provider' => 'openai', 'model' => 'gpt-test', 'budget' => 5]))['runs'][0]['id'];
+        $this->finish($id);
+        $this->call('POST', "/runs/$id/accept-all");
+
+        // As if the run had been made before an update renamed {username}:
+        // the stored English and translation say {name}, the forum's says {username}.
+        $item = $this->database()->table('phrasebook_items')->where('run_id', $id)->where('source', 'like', '%{username}%')->where('status', 'accepted')->first();
+        $this->database()->table('phrasebook_items')->where('id', $item->id)->update([
+            'source' => str_replace('{username}', '{name}', $item->source),
+            'translation' => str_replace('{username}', '{name}', $item->translation),
+        ]);
+
+        $saved = $this->json($this->call('POST', "/runs/$id/save"));
+        $this->assertSame(1, $saved['skipped']);
+        $this->assertFalse($this->database()->table('fof_linguist_strings')->where('key', $item->key)->exists());
+
+        $export = (string) $this->call('POST', '/export', 1, ['locale' => 'nl', 'format' => 'yaml'])->getBody();
+        $this->assertStringNotContainsString((string) \Symfony\Component\Yaml\Yaml::dump(['x' => str_replace('{username}', '{name}', $item->translation)]) === '' ? '' : str_replace('{username}', '{name}', $item->translation), $export);
+    }
 }

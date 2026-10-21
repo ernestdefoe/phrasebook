@@ -34,8 +34,11 @@ class Processor
     /** Retryable failures in a row before the run pauses for the admin. */
     public const MAX_FAILURES = 8;
 
-    /** Longer than the slowest call (local models: 600 s), so a lease outlives its batch. */
-    private const LEASE_SECONDS = 660;
+    /** Longer than the slowest batch (one local-model call: 600 s), so a lease outlives its batch. */
+    private const LEASE_SECONDS = 900;
+
+    /** Strings per DeepL/Google batch: two or three requests at most, well inside the lease. */
+    private const MT_BATCH = 40;
 
     public function __construct(
         private readonly ConnectionInterface $db,
@@ -64,8 +67,20 @@ class Processor
         try {
             $this->work($run);
         } finally {
+            // The admin may have stopped (or deleted) the run while the batch
+            // was out: what they decided stands over what the batch set.
+            $now = $this->db->table('phrasebook_runs')->where('id', $run->id)->value('status');
+
+            if ($now === 'cancelled') {
+                $run->status = 'cancelled';
+                $run->next_attempt_at = null;
+            }
+
             $run->locked_until = null;
-            $run->save();
+
+            if ($now !== null) {
+                $run->save();
+            }
         }
 
         return $run->active();
@@ -107,7 +122,7 @@ class Processor
         $mt = $def['kind'] === 'mt';
         $maxAttempts = $mt ? 1 : self::MAX_ATTEMPTS;
         $state = $run->state();
-        $limit = (int) min($this->settings->batchSize(), $state['batch_limit'] ?? PHP_INT_MAX);
+        $limit = (int) min($this->settings->batchSize(), $state['batch_limit'] ?? PHP_INT_MAX, $mt ? self::MT_BATCH : PHP_INT_MAX);
 
         $rows = $this->db->table('phrasebook_items')
             ->where('run_id', $run->id)
@@ -257,9 +272,14 @@ class Processor
             ];
         }
 
-        // One statement for the whole batch: every row exists, so this only
-        // ever takes the update path.
-        $this->db->table('phrasebook_items')->upsert($rows, ['id'], ['translation', 'attempts', 'errors', 'status', 'updated_at']);
+        // One statement for the whole batch, and only while the run still
+        // exists: the admin may have deleted it while the batch was out, and
+        // an upsert would then put its rows back.
+        $this->db->transaction(function () use ($run, $rows) {
+            if ($this->db->table('phrasebook_runs')->where('id', $run->id)->lockForUpdate()->exists()) {
+                $this->db->table('phrasebook_items')->upsert($rows, ['id'], ['translation', 'attempts', 'errors', 'status', 'updated_at']);
+            }
+        });
     }
 
     /**

@@ -12,7 +12,7 @@ namespace Ernestdefoe\Phrasebook\Icu;
  * message's own tags (<a>…</a>) stay as tags so the engine can move words
  * around them. After translation the units are put back together into ICU,
  * with apostrophes and braces in the translated text escaped the way ICU
- * reads them. The result is still checked by the Validator like any other.
+ * and Flarum's browser formatter both read them. The result is still checked by the Validator like any other.
  */
 final class Segmenter
 {
@@ -98,7 +98,7 @@ final class Segmenter
             if (in_array($node[0], ['plural', 'selectordinal', 'select'], true)) {
                 $branches = [];
                 foreach ($node[2] as $selector => $branch) {
-                    $branches[(string) $selector] = $this->plan($branch, $node[0] !== 'select' || $plural);
+                    $branches[(string) $selector] = $this->plan($branch, $node[0] !== 'select');
                 }
                 $node[2] = $branches;
             }
@@ -190,8 +190,10 @@ final class Segmenter
             }
 
             // Text: the engine's markup is tags we kept and escaped entities.
+            // What follows decides whether a final apostrophe must be doubled:
+            // a placeholder or tag, or the "}" that closes a branch.
             $next = $pieces[$k + 1] ?? null;
-            $nextIsSyntax = $next !== null && $next[0] === 'slot' && $next[1][0] !== 'tag';
+            $nextIsSyntax = $next !== null ? $next[0] === 'slot' : $u > 0;
             $out .= self::escapeText($piece[1], $plan['plural'], $nextIsSyntax);
         }
 
@@ -240,16 +242,19 @@ final class Segmenter
             $out .= $isTag ? $chunk : html_entity_decode($chunk, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         }
 
-        $special = $plural ? '{}#|' : '{}';
+        $special = $plural ? '{}#' : '{}';
         $result = '';
         $len = strlen($out);
 
         for ($i = 0; $i < $len; $i++) {
             $c = $out[$i];
 
+            // Doubled before anything either formatter would read as the
+            // start of a quote: a brace, # in a plural, and "<" (a tag, for
+            // the browser's formatter).
             if ($c === "'") {
                 $next = $i + 1 < $len ? $out[$i + 1] : ($nextIsSyntax ? '{' : '');
-                $result .= ($next === "'" || ($next !== '' && str_contains($special, $next))) ? "''" : "'";
+                $result .= ($next === "'" || $next === '<' || ($next !== '' && str_contains($special, $next))) ? "''" : "'";
                 continue;
             }
 

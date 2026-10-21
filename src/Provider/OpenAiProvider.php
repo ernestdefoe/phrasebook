@@ -97,10 +97,13 @@ final class OpenAiProvider implements Provider
         }
 
         $usage = $body['usage'] ?? [];
+        // OpenAI counts cached tokens inside prompt_tokens: split them out so
+        // they are neither charged twice nor shown twice.
+        $cached = (int) ($usage['prompt_tokens_details']['cached_tokens'] ?? 0);
         $spent = new Usage(
-            input: (int) ($usage['prompt_tokens'] ?? 0),
+            input: max(0, (int) ($usage['prompt_tokens'] ?? 0) - $cached),
             output: (int) ($usage['completion_tokens'] ?? 0),
-            cacheRead: (int) ($usage['prompt_tokens_details']['cached_tokens'] ?? 0),
+            cacheRead: $cached,
             cost: is_numeric($usage['cost'] ?? null) ? (float) $usage['cost'] : null,
             model: (string) ($body['model'] ?? $job->model)
         );

@@ -2,6 +2,7 @@
 
 namespace Ernestdefoe\Phrasebook\Export;
 
+use Ernestdefoe\Phrasebook\Icu\Validator;
 use Ernestdefoe\Phrasebook\Run\Runs;
 use Ernestdefoe\Phrasebook\Strings\Languages;
 use Ernestdefoe\Phrasebook\Strings\Scanner;
@@ -53,8 +54,10 @@ class Exporter
 
         $hashes = [];
 
+        // Only what still fits the English as it is now: an extension updated
+        // since the run may have renamed a placeholder.
         foreach ($ours as $key => [$translation, $hash]) {
-            if (isset($english[$key])) {
+            if (isset($english[$key]) && Validator::check($english[$key], $translation) === []) {
                 $strings[$key] = $translation;
                 $hashes[$key] = $hash;
             }

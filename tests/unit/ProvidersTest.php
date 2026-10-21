@@ -298,4 +298,25 @@ class ProvidersTest extends TestCase
             @unlink($storage);
         }
     }
+
+    public function test_a_deepl_batch_that_fails_half_way_is_charged_for_the_half_that_was_sent(): void
+    {
+        $texts = [];
+        $items = [];
+        for ($i = 0; $i < 60; $i++) {
+            $items[(string) $i] = ['key' => "core.k$i", 'text' => "String number $i", 'feedback' => null];
+        }
+
+        $http = (new FakeHttp())
+            ->answer(200, ['translations' => array_map(fn ($i) => ['text' => "Zeichenkette $i"], range(0, 49))])
+            ->answer(429, ['message' => 'Too many requests'], ['retry-after' => '5']);
+
+        try {
+            (new DeepLProvider($http, 'k'))->translate(new Job($items, 'de', 'German', 'quality_optimized', 'neutral', '', [], 0));
+            $this->fail('no exception');
+        } catch (BatchFailed $e) {
+            $this->assertSame('rate_limit', $e->error->kind);
+            $this->assertSame(array_sum(array_map(fn ($i) => mb_strlen("String number $i"), range(0, 49))), $e->usage->characters);
+        }
+    }
 }

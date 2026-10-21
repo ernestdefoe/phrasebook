@@ -422,6 +422,7 @@ export default class RunsTab extends Component {
 
         call
           .then((result) => {
+            this.failures = 0;
             this.apply(result);
             this.idle = JSON.stringify(this.counts) === before;
             if (!this.idle) {
@@ -429,12 +430,18 @@ export default class RunsTab extends Component {
               this.loadItems();
             }
           })
-          .catch((error) => (this.message = errorText(error)))
+          .catch((error) => {
+            // Back off on errors (a lost session, the server restarting) and
+            // give up after a few, rather than hammer the forum.
+            this.failures = (this.failures || 0) + 1;
+            this.message = errorText(error);
+            if (this.failures >= 5) this.stopped = true;
+          })
           .finally(() => this.drive());
       },
       // Back to back while batches land; slower when nothing moved (another
       // process holds the run, or it is between retries).
-      here ? Math.max(wait, this.idle ? 2000 : 250) : Math.max(wait, 3000)
+      Math.max(wait, this.failures ? Math.min(60000, 2000 * 2 ** this.failures) : here ? (this.idle ? 2000 : 250) : 3000)
     );
   }
 

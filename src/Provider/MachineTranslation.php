@@ -48,15 +48,18 @@ abstract class MachineTranslation implements Provider
             array_push($texts, ...$split['units']);
         }
 
-        $usage = new Usage(characters: array_sum(array_map('mb_strlen', $texts)), model: $job->model);
+        $usage = new Usage(model: $job->model);
         $out = [];
 
-        // Request by request, within the API's limits.
+        // Request by request, within the API's limits. Characters are counted
+        // as each request succeeds, so a batch that fails half way is still
+        // charged for the half the engine translated (and billed).
+        $chunks = [];
         $chunk = [];
         $size = 0;
         foreach ($texts as $text) {
             if ($chunk && (count($chunk) >= static::PER_REQUEST || $size + mb_strlen($text) > static::CHARS_PER_REQUEST)) {
-                array_push($out, ...$this->send($chunk, $job));
+                $chunks[] = $chunk;
                 $chunk = [];
                 $size = 0;
             }
@@ -64,7 +67,20 @@ abstract class MachineTranslation implements Provider
             $size += mb_strlen($text);
         }
         if ($chunk) {
-            array_push($out, ...$this->send($chunk, $job));
+            $chunks[] = $chunk;
+        }
+
+        foreach ($chunks as $chunk) {
+            try {
+                array_push($out, ...$this->send($chunk, $job));
+            } catch (ProviderError $e) {
+                if ($usage->characters === 0) {
+                    throw $e;
+                }
+
+                throw new BatchFailed($e, $usage);
+            }
+            $usage->characters += array_sum(array_map('mb_strlen', $chunk));
         }
 
         if (count($out) !== count($texts)) {

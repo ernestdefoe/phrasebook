@@ -51,8 +51,10 @@ class ItemsController extends Controller
         }
 
         if ($search !== '') {
-            // Bound parameters; % and _ in the search are matched literally.
-            $like = '%'.addcslashes(mb_substr($search, 0, 100), '%_\\').'%';
+            // Bound parameters. % and _ are matched literally where LIKE has a
+            // default escape character (SQLite has none: there they stay wildcards).
+            $search = mb_substr($search, 0, 100);
+            $like = '%'.($this->db instanceof \Illuminate\Database\SQLiteConnection ? $search : addcslashes($search, '%_\\')).'%';
             $query->where(fn ($q) => $q->where('key', 'like', $like)->orWhere('source', 'like', $like)->orWhere('translation', 'like', $like));
         }
 

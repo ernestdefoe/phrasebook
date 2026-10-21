@@ -61,12 +61,25 @@ final class Validator
         }
 
         try {
-            $got = self::signature(Parser::parse($translation));
+            [$tree, $apostropheBeforeTag] = Parser::read($translation);
+            $got = self::signature($tree);
         } catch (SyntaxError $e) {
             return [self::error('syntax', $e->reason)];
         }
 
+        // The last word is ICU's own: anything PHP's formatter can't read is
+        // refused, whatever the parser above thought of it.
+        if (class_exists(\MessageFormatter::class) && \MessageFormatter::create('en', $translation) === null) {
+            return [self::error('syntax', 'icu')];
+        }
+
         $errors = [];
+
+        // "l'<a>": PHP shows the apostrophe, the browser's formatter starts a
+        // quote there and prints the tag and every placeholder after it raw.
+        if ($apostropheBeforeTag) {
+            $errors[] = self::error('apostrophe_tag');
+        }
 
         foreach ($want['args'] as $name => $types) {
             if (! isset($got['args'][$name])) {
@@ -159,7 +172,8 @@ final class Validator
                 'tag_missing' => "The tag $d must be kept exactly as written.",
                 'tag_added' => "The tag $d is not in the source.",
                 'tag_unbalanced' => 'Every opening tag must be closed, as in the source.',
-                'markup' => 'It contains markup that is not in the source.',
+                'markup' => 'It contains markup or a "<" that is not in the source; write "less than" in words instead of "<".',
+                'apostrophe_tag' => "An apostrophe directly before a tag (e.g. l'<a>) must be written twice: l''<a>.",
                 'no_answer' => 'Your reply had no translation for this id.',
                 default => 'It was rejected.',
             };
@@ -253,9 +267,9 @@ final class Validator
             $sig['balanced'] = false;
         }
 
-        // Any other "<" that starts something tag-like (attributes, comments,
-        // doctype, processing instructions) is markup the source never had.
-        if (preg_match('~<[a-zA-Z/!?]~', preg_replace(self::TAG, '', $text) ?? '')) {
+        // Any other "<" (a tag with attributes, a comment, "<5 minutes") is
+        // something the browser's formatter reads as a broken tag and throws on.
+        if (str_contains(preg_replace(self::TAG, '', $text) ?? '', '<')) {
             $sig['markup'] = true;
         }
     }
@@ -287,7 +301,7 @@ final class Validator
             $errors[] = self::error('tag_added', $tag);
         }
 
-        if (preg_match('~<[a-zA-Z/!?]~', preg_replace(self::TAG, '', $translation) ?? '')) {
+        if (str_contains(preg_replace(self::TAG, '', $translation) ?? '', '<') && ! str_contains(preg_replace(self::TAG, '', $source) ?? '', '<')) {
             $errors[] = self::error('markup');
         }
 

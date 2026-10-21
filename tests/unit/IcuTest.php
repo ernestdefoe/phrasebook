@@ -179,4 +179,38 @@ class IcuTest extends TestCase
         $this->assertSame('zh_Hans', \Ernestdefoe\Phrasebook\Strings\Languages::canonical('zh-hans', ['zh_Hans']));
         $this->assertSame('nl', \Ernestdefoe\Phrasebook\Strings\Languages::canonical('nl', ['de']));
     }
+
+    /** @return list<array{0: string, 1: string, 2: string}> */
+    public static function browser(): array
+    {
+        return [
+            // Fine for PHP, a quote for Flarum's browser formatter: the tag and
+            // {username} would be printed raw.
+            'apostrophe before a tag' => ['See the <a>help</a> for {username}', "Consultez l'<a>aide</a> de {username}", 'apostrophe_tag'],
+            // The browser formatter throws on a "<" that isn't a tag.
+            'stray less-than' => ['under 5 minutes', 'moins de <5 minutes', 'markup'],
+            // ICU: | is only special in choice, # only directly inside a plural.
+            'quoted pipe in a plural' => ['{count, plural, one {# r} other {# r}}', "{count, plural, one {# r'|{'} other {# r}}", 'syntax'],
+            'quoted # in a select in a plural' => ['{n, plural, other {{g, select, other {x}}}}', "{n, plural, other {{g, select, other {'#'}}}}", 'syntax'],
+        ];
+    }
+
+    #[DataProvider('browser')]
+    public function test_refuses_what_flarums_browser_formatter_would_break_on(string $source, string $translation, string $code): void
+    {
+        $this->assertContains($code, array_column(Validator::check($source, $translation), 'code'));
+    }
+
+    public function test_a_doubled_apostrophe_before_a_tag_is_accepted(): void
+    {
+        $this->assertSame([], Validator::check('See the <a>help</a> for {username}', "Consultez l''<a>aide</a> de {username}"));
+    }
+
+    public function test_segmenter_doubles_apostrophes_before_tags_and_at_the_end_of_a_branch(): void
+    {
+        $split = Segmenter::split('{count, plural, one {a bit} other {# bits}} of the <a>rules</a>');
+        $joined = (string) $split['plan']->join(["<x i=\"0\"/> dell'<a>regole</a>", "un po'", '<x i="0"/> pezzi']);
+        $this->assertSame("{count, plural, one {un po''} other {# pezzi}} dell''<a>regole</a>", $joined);
+        $this->assertSame([], Validator::check('{count, plural, one {a bit} other {# bits}} of the <a>rules</a>', $joined));
+    }
 }

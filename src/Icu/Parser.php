@@ -10,7 +10,9 @@ namespace Ernestdefoe\Phrasebook\Icu;
  * Quoting follows ICU's default (DOUBLE_OPTIONAL) mode, the one PHP's
  * MessageFormatter and Symfony's polyfill use: '' is always one apostrophe;
  * a single apostrophe starts a quoted literal only when the next character
- * is { or } (or # / | inside a plural), otherwise it is just an apostrophe.
+ * is { or } (or # directly inside a plural), otherwise it is just an
+ * apostrophe. Flarum's browser formatter also quotes from "'<", which PHP
+ * doesn't; read() reports that case so the Validator can refuse it.
  * That is why French "l'{username}" quietly turns the argument into text:
  * the parser reads it exactly as Flarum's translator would.
  *
@@ -30,6 +32,9 @@ final class Parser
 
     private int $n;
 
+    /** A lone apostrophe directly before "<": fine for PHP, a quote for the browser's formatter. */
+    private bool $apostropheBeforeTag = false;
+
     private function __construct(string $message)
     {
         $this->s = $message;
@@ -43,6 +48,17 @@ final class Parser
      */
     public static function parse(string $message): array
     {
+        return self::read($message)[0];
+    }
+
+    /**
+     * @return array{0: list<array<int, mixed>>, 1: bool} the tree, and whether a
+     *         lone apostrophe sits directly before "<"
+     *
+     * @throws SyntaxError
+     */
+    public static function read(string $message): array
+    {
         $parser = new self($message);
         $nodes = $parser->message(0, false);
 
@@ -51,7 +67,7 @@ final class Parser
             throw new SyntaxError('unmatched_brace', $parser->i);
         }
 
-        return $nodes;
+        return [$nodes, $parser->apostropheBeforeTag];
     }
 
     /**
@@ -118,7 +134,7 @@ final class Parser
             return "'";
         }
 
-        if ($next === '{' || $next === '}' || ($inPlural && ($next === '#' || $next === '|'))) {
+        if ($next === '{' || $next === '}' || ($inPlural && $next === '#')) {
             // Quoted literal up to the next lone apostrophe ('' inside stays one).
             $this->i++;
             $out = '';
@@ -142,6 +158,10 @@ final class Parser
 
             // ICU quotes to the end of the message when the quote never closes.
             return $out;
+        }
+
+        if ($next === '<') {
+            $this->apostropheBeforeTag = true;
         }
 
         $this->i++;
@@ -246,7 +266,10 @@ final class Parser
             }
 
             $this->i++;
-            $branches[$selector] = $this->message($depth + 1, $type !== 'select' || $inPlural);
+            // # is the number only directly inside a plural (or selectordinal)
+            // branch, not inside a select nested in one: ICU and the
+            // browser's formatter agree on that.
+            $branches[$selector] = $this->message($depth + 1, $type !== 'select');
 
             if ($this->peek() !== '}') {
                 throw new SyntaxError('unclosed_argument', $start);

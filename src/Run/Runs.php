@@ -30,6 +30,7 @@ class Runs
         private readonly ConnectionInterface $db,
         private readonly Queue $queue,
         private readonly ExtensionManager $extensions,
+        private readonly Scanner $scanner,
         private readonly Container $container,
         private readonly Factory $factory
     ) {
@@ -148,8 +149,13 @@ class Runs
     public function delete(Run $run): void
     {
         $this->tidy($run);
-        $this->db->table('phrasebook_items')->where('run_id', $run->id)->delete();
-        $run->delete();
+
+        // Under the same row lock a batch takes to write its answers.
+        $this->db->transaction(function () use ($run) {
+            $this->db->table('phrasebook_runs')->where('id', $run->id)->lockForUpdate()->first();
+            $this->db->table('phrasebook_items')->where('run_id', $run->id)->delete();
+            $this->db->table('phrasebook_runs')->where('id', $run->id)->delete();
+        });
     }
 
     /**
@@ -230,19 +236,23 @@ class Runs
         $saved = 0;
         $skipped = 0;
         $now = Carbon::now();
+        // Checked against the English as it is now: an extension updated since
+        // the run may have renamed a placeholder.
+        $english = $this->scanner->english();
 
         $this->db->table('phrasebook_items')
             ->where('run_id', $run->id)
             ->where('status', 'accepted')
             ->orderBy('id')
-            ->chunkById(500, function ($items) use ($run, &$saved, &$skipped, $now) {
+            ->chunkById(500, function ($items) use ($run, &$saved, &$skipped, $now, $english) {
                 $strings = [];
                 $ledger = [];
                 $ids = [];
 
                 foreach ($items as $item) {
-                    // Checked again: the English may have changed since.
-                    if (strlen($item->key) > self::LINGUIST_KEY_LENGTH || Validator::check((string) $item->source, (string) $item->translation)) {
+                    $source = $english[$item->key] ?? null;
+
+                    if ($source === null || strlen($item->key) > self::LINGUIST_KEY_LENGTH || Validator::check($source, (string) $item->translation)) {
                         $skipped++;
                         continue;
                     }
