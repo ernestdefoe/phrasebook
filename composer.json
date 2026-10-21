@@ -1,0 +1,85 @@
+{
+    "name": "ernestdefoe/phrasebook",
+    "description": "Translate your forum's interface with AI, bring your own provider. Fills in the strings a language pack is missing for core and every installed extension, checks every ICU placeholder, lets you review each one, and saves them as Linguist overrides or exports a language pack. Claude, OpenAI, Gemini, Mistral, DeepSeek, Groq, OpenRouter, Ollama, LM Studio, any OpenAI-compatible endpoint, DeepL and Google Translate.",
+    "keywords": ["flarum", "flarum-extension", "translation", "language pack", "localization", "i18n", "ai", "linguist", "deepl", "claude", "openai"],
+    "type": "flarum-extension",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ernest Defoe",
+            "email": "ernestdefoe@gmail.com"
+        }
+    ],
+    "homepage": "https://github.com/ernestdefoe/phrasebook",
+    "support": {
+        "issues": "https://github.com/ernestdefoe/phrasebook/issues",
+        "source": "https://github.com/ernestdefoe/phrasebook"
+    },
+    "funding": [
+        {
+            "type": "other",
+            "url": "https://buymeacoffee.com/ernestdefoe"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "ext-curl": "*",
+        "flarum/core": "^2.0"
+    },
+    "suggest": {
+        "fof/linguist": "Save reviewed translations as overrides that take effect right away.",
+        "ext-zip": "Export a ready-to-install language pack (YAML export works without it).",
+        "ext-intl": "Language names in prompts and exported packs."
+    },
+    "extra": {
+        "flarum-extension": {
+            "title": "Phrasebook",
+            "category": "feature",
+            "icon": {
+                "name": "fas fa-language",
+                "backgroundColor": "#0f766e",
+                "color": "#ffffff"
+            },
+            "optional-dependencies": [
+                "fof/linguist"
+            ]
+        }
+    },
+    "minimum-stability": "beta",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "Ernestdefoe\\Phrasebook\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Ernestdefoe\\Phrasebook\\Tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "flarum/phpstan": "^2.0",
+        "flarum/testing": "^2.0",
+        "fof/linguist": "^2.0"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": [
+            "@test:unit",
+            "@test:integration"
+        ],
+        "test:unit": "phpunit -c tests/phpunit.unit.xml",
+        "test:integration": "phpunit -c tests/phpunit.integration.xml",
+        "test:setup": "@php tests/integration/setup.php",
+        "analyse:phpstan": "phpstan analyse"
+    },
+    "scripts-descriptions": {
+        "test": "Runs all tests.",
+        "test:unit": "Runs the unit tests.",
+        "test:integration": "Runs all integration tests.",
+        "test:setup": "Sets up a database for use with integration tests. Execute this only once.",
+        "analyse:phpstan": "Run static analysis"
+    }
+}

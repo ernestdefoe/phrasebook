@@ -1,0 +1,276 @@
+.Phrasebook {
+  .Form-group > label,
+  fieldset legend {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  textarea.FormControl {
+    resize: vertical;
+  }
+}
+
+.Phrasebook-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--control-bg);
+  margin-bottom: 20px;
+
+  .Button {
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    padding: 8px 14px;
+
+    &.active {
+      border-bottom-color: var(--primary-color);
+      color: var(--primary-color);
+      font-weight: bold;
+    }
+  }
+}
+
+.Phrasebook-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--primary-color);
+}
+
+.Phrasebook-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  > .FormControl {
+    flex: 1 1 220px;
+    width: auto;
+  }
+}
+
+.Phrasebook-narrow.FormControl {
+  flex: 0 0 auto;
+  width: 120px;
+}
+
+.Phrasebook-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-bottom: 8px;
+
+  .checkbox input {
+    margin-right: 6px;
+  }
+}
+
+.Phrasebook-mono,
+.Phrasebook code {
+  font-family: var(--font-family-monospace, monospace);
+  font-size: 13px;
+}
+
+.Phrasebook code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.Phrasebook-muted,
+.Phrasebook-detail {
+  color: var(--muted-color);
+  font-size: 12px;
+}
+
+.Phrasebook-saved {
+  color: var(--muted-color);
+}
+
+.Phrasebook-bad {
+  color: var(--alert-error-color, #d83e3e);
+}
+
+.Phrasebook-message {
+  font-weight: bold;
+}
+
+.Phrasebook-price {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted-color);
+
+  .FormControl {
+    width: 160px;
+  }
+}
+
+.Phrasebook-test {
+  margin-top: 10px;
+}
+
+.Phrasebook-sample {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+
+  &.is-good > span:last-child {
+    color: var(--alert-success-color, #2e8540);
+  }
+
+  &.is-bad > span:last-child {
+    color: var(--alert-error-color, #d83e3e);
+  }
+}
+
+.Phrasebook-tableWrap {
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.Phrasebook-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--control-bg);
+  }
+
+  th {
+    font-size: 12px;
+    color: var(--muted-color);
+  }
+}
+
+.Phrasebook-estimate {
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: var(--border-radius);
+  background: var(--control-bg);
+
+  h4 {
+    margin-top: 0;
+  }
+}
+
+.Phrasebook-using {
+  color: var(--muted-color);
+}
+
+.Phrasebook-progress {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--control-bg);
+  overflow: hidden;
+  margin: 10px 0;
+
+  > div {
+    height: 100%;
+    background: var(--primary-color);
+    transition: width 0.3s;
+  }
+}
+
+.Phrasebook-status {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  background: var(--control-bg);
+
+  &.is-running,
+  &.is-queued,
+  &.is-translated {
+    background: var(--primary-color);
+    color: var(--body-bg);
+  }
+
+  &.is-review,
+  &.is-accepted,
+  &.is-saved {
+    background: var(--alert-success-bg, #dff0d8);
+    color: var(--alert-success-color, #2e8540);
+  }
+
+  &.is-paused,
+  &.is-failed {
+    background: var(--alert-error-bg, #f2dede);
+    color: var(--alert-error-color, #d83e3e);
+  }
+}
+
+.Phrasebook-export {
+  border: 1px solid var(--control-bg);
+  border-radius: var(--border-radius);
+  padding: 10px 14px;
+  margin: 16px 0;
+}
+
+.Phrasebook-filters .Button.active {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.Phrasebook-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.Phrasebook-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--control-bg);
+
+  dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 12px;
+    margin: 8px 0;
+  }
+
+  dt {
+    color: var(--muted-color);
+    font-size: 12px;
+    padding-top: 4px;
+  }
+
+  dd {
+    margin: 0;
+    min-width: 0;
+  }
+
+  @media (max-width: 600px) {
+    dl {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+.Phrasebook-itemHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.Phrasebook-key {
+  color: var(--muted-color);
+}
+
+.Phrasebook-errors {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+  color: var(--alert-error-color, #d83e3e);
+  font-size: 13px;
+}

@@ -1,0 +1,5 @@
+vendor/
+node_modules/
+tests/integration/tmp/
+.phpunit.cache/
+.DS_Store
