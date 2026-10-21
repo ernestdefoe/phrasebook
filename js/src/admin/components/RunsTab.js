@@ -152,6 +152,7 @@ export default class RunsTab extends Component {
           </Button>
         </div>
         {!data.linguist ? <p className="helpText">{t('runs.linguist_missing')}</p> : null}
+        {data.linguistOutdated ? <p className="Phrasebook-bad">{t('runs.linguist_outdated')}</p> : null}
 
         <fieldset className="Phrasebook-export">
           <legend>{t('export.title')}</legend>

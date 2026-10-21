@@ -4,7 +4,7 @@ Translate your Flarum forum's interface with AI, using your own provider and you
 
 Phrasebook finds every string a language is missing (core and every extension you run), translates them with the model you pick, checks every placeholder, and lets you review each one. Then it saves them as [Linguist](https://github.com/FriendsOfFlarum/linguist) overrides that take effect at once, or exports a complete language pack ready to publish.
 
-![The Translate tab: what German is missing, per extension, with the cost estimate](screenshots/translate.png)
+![The Translate tab: everything Spanish is missing on a forum with 150 extensions, per extension](screenshots/translate.jpg)
 
 ## Bring your own provider
 
@@ -39,6 +39,8 @@ Untick any extension you don't want translated.
 
 ## Know the cost before you start
 
+![The cost estimate for 516 strings: under three cents on Claude Haiku 5.5](screenshots/estimate.jpg)
+
 - **A dry-run estimate** for each language: strings, requests, tokens (or characters) and a cost range.
 - **A hard budget per language.** Before every request Phrasebook works out the most it could cost (every output token the request allows, the instructions written to the cache) and pauses the run rather than go over. Prices for Claude, DeepL and Google are built in, OpenRouter's come from its model list, local models are free, and for any other model you enter the price from the linked price list; a run won't start without one.
 - **Real usage** from each response: tokens in and out, cache reads and writes, thinking, characters; OpenRouter's exact cost when it reports one.
@@ -51,7 +53,7 @@ Untick any extension you don't want translated.
 
 ## Review, then save or export
 
-![Reviewing a run: English, the proposed translation, accept, edit, reject or translate again](screenshots/review.png)
+![Reviewing a run on Claude Haiku 5.5: two Spanish strings the pack had left out of date, fixed](screenshots/review.jpg)
 
 - Every string with its key, its English, what the language has now, and the proposed translation, editable. **Accept**, **reject**, **translate again**, or **accept all valid** at once. An edit is checked like a model's answer.
 - **Save to Linguist:** accepted strings become Linguist overrides for that language and show on the forum right away.
@@ -60,7 +62,7 @@ Untick any extension you don't want translated.
   - a **language pack** (zip): `composer.json`, `extend.php`, one YAML file per extension (named so Flarum loads it only while that extension is enabled), a README and an MIT licence. Set your vendor name and it's ready to publish.
   - Either can hold just the translations made here, or everything the language has with them on top.
 
-![Provider settings: Claude with its model list and prices](screenshots/provider.png)
+![Provider settings: Claude, its model list and its built-in price](screenshots/provider.jpg)
 
 ## Security
 
@@ -71,7 +73,9 @@ Untick any extension you don't want translated.
 
 ## Performance
 
-Admin only, from end to end: nothing on any forum page (no JavaScript, CSS or payload), no listeners, nothing that runs during a page view. The admin page adds 2 KB (gzipped) to the admin bundle; the screens themselves load only when you open Phrasebook. A scan of 1,600 strings takes about 60 ms.
+A real run on a forum with 150 extensions: 223 Spanish strings translated by Claude Haiku 5.5 in 9 requests and about 30 seconds on the queue, every one valid on the first try, for half a cent.
+
+Admin only, from end to end: nothing on any forum page (no JavaScript, CSS or payload), no listeners, nothing that runs during a page view. The admin page adds 2 KB (gzipped) to the admin bundle; the screens themselves load only when you open Phrasebook. A scan of 16,000 strings across 150 extensions takes under 0.1 s.
 
 ## Installation
 
@@ -81,7 +85,7 @@ php flarum migrate
 php flarum cache:clear
 ```
 
-Enable **Phrasebook** in the admin panel. Install [fof/linguist](https://github.com/FriendsOfFlarum/linguist) to save translations straight to the forum; without it, export them.
+Enable **Phrasebook** in the admin panel. Install [fof/linguist](https://github.com/FriendsOfFlarum/linguist) 2.0.0 or newer to save translations straight to the forum (older versions show placeholders wrongly in emails); without it, export them.
 
 Optional PHP extensions: `zip` (language-pack export; YAML export works without it) and `intl` (language names).
 

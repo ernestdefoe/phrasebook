@@ -30,6 +30,22 @@ class StateController extends Controller
     ) {
     }
 
+    /**
+     * Linguist before 2.0.0 stores its strings outside Flarum's ICU domain,
+     * so a saved translation with a placeholder or plural renders wrongly
+     * wherever the server writes it (emails): "A {Ana} le gustó".
+     */
+    private static function linguistOutdated(): bool
+    {
+        if (! class_exists(\Composer\InstalledVersions::class) || ! \Composer\InstalledVersions::isInstalled('fof/linguist')) {
+            return false;
+        }
+
+        $version = (string) \Composer\InstalledVersions::getVersion('fof/linguist');
+
+        return $version !== '' && ! str_starts_with($version, 'dev-') && version_compare($version, '2.0.0.0', '<');
+    }
+
     protected function respond(ServerRequestInterface $request): mixed
     {
         $hints = $this->vault->hints();
@@ -65,6 +81,7 @@ class StateController extends Controller
             'locales' => $locales,
             'queued' => $this->runs->queued(),
             'linguist' => $this->extensions->isEnabled('fof-linguist'),
+            'linguistOutdated' => $this->extensions->isEnabled('fof-linguist') && self::linguistOutdated(),
             'zip' => Exporter::zipAvailable(),
             'runs' => Run::query()->orderByDesc('id')->limit(20)->get()->map(fn (Run $run) => self::present($run))->all(),
         ];

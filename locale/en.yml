@@ -130,6 +130,7 @@ ernestdefoe-phrasebook:
       accepted_message: "{count} accepted."
       delete: Delete run
       delete_confirm: "Delete this run and its translations? Strings already saved to Linguist stay."
+      linguist_outdated: "Update FoF Linguist to 2.0.0 or newer first (composer update fof/linguist): older versions show placeholders wrongly in text the server writes, such as emails."
       linguist_missing: "Enable FoF Linguist to save straight to the forum, or export a file below."
       waiting: "Waiting before trying again ({error})."
       paused_budget: "Paused: the next request could go over the budget."
