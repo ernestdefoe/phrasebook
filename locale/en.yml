@@ -126,6 +126,7 @@ ernestdefoe-phrasebook:
       save: "Save to Linguist ({count})"
       save_confirm: "Save {count} accepted strings as Linguist overrides for {locale}? They take effect on the forum right away."
       saved_message: "{saved} saved to Linguist. {skipped} skipped (key too long or no longer valid)."
+      not_installed: "No language pack for {locale} is installed, so the forum can't show them yet: export a language pack below, or install one."
       accepted_message: "{count} accepted."
       delete: Delete run
       delete_confirm: "Delete this run and its translations? Strings already saved to Linguist stay."
@@ -183,6 +184,7 @@ ernestdefoe-phrasebook:
       select_added: "A select branch isn't in the English: {detail}."
       plural_key: "Not a plural category: {detail}."
       plural_exact_missing: "An exact plural case is missing: {detail}."
+      plural_form_missing: "A plural form this language needs is missing: {detail}."
       tag_missing: "The tag {detail} is missing."
       tag_added: "The tag {detail} isn't in the English."
       tag_unbalanced: A tag isn't closed.

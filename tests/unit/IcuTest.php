@@ -155,4 +155,28 @@ class IcuTest extends TestCase
         $text = Validator::explain([['code' => 'argument_missing', 'detail' => 'username']]);
         $this->assertStringContainsString('{username}', $text);
     }
+
+    public function test_a_models_plural_must_give_every_form_the_language_needs(): void
+    {
+        $source = '{count, plural, one {# reply} other {# replies}}';
+        $russian = \Ernestdefoe\Phrasebook\Strings\Languages::pluralCategories('ru');
+        $this->assertSame(['one', 'few', 'many', 'other'], $russian);
+        $this->assertSame(['one', 'other'], \Ernestdefoe\Phrasebook\Strings\Languages::pluralCategories('de'));
+        $this->assertSame(['other'], \Ernestdefoe\Phrasebook\Strings\Languages::pluralCategories('ja'));
+
+        $two = '{count, plural, one {# ответ} other {# ответа}}';
+        $this->assertContains('plural_form_missing', array_column(Validator::check($source, $two, $russian), 'code'));
+        // The admin may still save it by hand (it works, just less well).
+        $this->assertSame([], Validator::check($source, $two));
+        $this->assertSame([], Validator::check($source, '{count, plural, one {# ответ} few {# ответа} many {# ответов} other {# ответа}}', $russian));
+        // An ordinal is not a cardinal plural: not held to cardinal forms.
+        $this->assertSame([], Validator::check('{n, selectordinal, one {#st} other {#th}}', '{n, selectordinal, other {#.}}', $russian));
+    }
+
+    public function test_a_locale_is_stored_the_way_the_pack_spells_it(): void
+    {
+        $this->assertSame('pt-BR', \Ernestdefoe\Phrasebook\Strings\Languages::canonical('pt_BR', ['en', 'pt-BR']));
+        $this->assertSame('zh_Hans', \Ernestdefoe\Phrasebook\Strings\Languages::canonical('zh-hans', ['zh_Hans']));
+        $this->assertSame('nl', \Ernestdefoe\Phrasebook\Strings\Languages::canonical('nl', ['de']));
+    }
 }

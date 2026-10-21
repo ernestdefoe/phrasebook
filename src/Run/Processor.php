@@ -158,9 +158,17 @@ class Processor
         try {
             $result = $provider->translate($job);
             $this->charge($run, $price, $result['usage']);
-            $this->apply($run, $batch, $result['translations'], $maxAttempts);
+            $this->apply($run, $batch, $result['translations'], $maxAttempts, $mt ? null : Languages::pluralCategories($run->locale));
             $run->failures = 0;
             $state['bad_streak'] = 0;
+
+            // A batch that had to shrink grows back a little after each success.
+            if (isset($state['batch_limit'])) {
+                $state['batch_limit'] = (int) ceil($state['batch_limit'] * 1.25);
+                if ($state['batch_limit'] >= $this->settings->batchSize()) {
+                    unset($state['batch_limit']);
+                }
+            }
             $run->error = null;
             $run->message = null;
         } catch (BatchFailed $e) {
@@ -220,15 +228,16 @@ class Processor
     /**
      * @param list<object> $batch
      * @param array<string, string> $translations
+     * @param list<string>|null $plurals the forms every plural must give (language models only)
      */
-    private function apply(Run $run, array $batch, array $translations, int $maxAttempts): void
+    private function apply(Run $run, array $batch, array $translations, int $maxAttempts, ?array $plurals): void
     {
         $now = Carbon::now();
         $rows = [];
 
         foreach ($batch as $row) {
             $text = $translations[(string) $row->id] ?? null;
-            $errors = $text === null ? [['code' => 'no_answer', 'detail' => '']] : Validator::check((string) $row->source, $text);
+            $errors = $text === null ? [['code' => 'no_answer', 'detail' => '']] : Validator::check((string) $row->source, $text, $plurals);
             $attempts = (int) $row->attempts + 1;
 
             $rows[] = [

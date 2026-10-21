@@ -23,9 +23,13 @@ final class Validator
     private const TAG = '~<(/?)([a-zA-Z][a-zA-Z0-9_-]*)\s*(/?)>~';
 
     /**
+     * @param list<string>|null $plurals the plural categories the target
+     *        language needs; when given, a {x, plural} missing one of them
+     *        is refused (asked of a model's answers, not of the admin's)
+     *
      * @return list<array{code: string, detail: string}> empty when valid
      */
-    public static function check(string $source, string $translation): array
+    public static function check(string $source, string $translation, ?array $plurals = null): array
     {
         if (trim($translation) === '') {
             return trim($source) === '' ? [] : [self::error('empty')];
@@ -98,6 +102,11 @@ final class Validator
                     $errors[] = self::error('plural_exact_missing', "$name: $key");
                 }
             }
+            if ($plurals !== null && in_array($name, $got['cardinal'], true)) {
+                foreach (array_diff($plurals, $keys) as $key) {
+                    $errors[] = self::error('plural_form_missing', "$name: $key");
+                }
+            }
         }
 
         foreach (array_diff($want['tags'], $got['tags']) as $tag) {
@@ -146,6 +155,7 @@ final class Validator
                 'select_added' => "The select branch \"$d\" is not in the source.",
                 'plural_key' => "\"$d\" is not a plural category (use zero, one, two, few, many, other or =N).",
                 'plural_exact_missing' => "The exact plural case \"$d\" must be kept.",
+                'plural_form_missing' => "The plural form \"$d\" is missing: give every form the language needs.",
                 'tag_missing' => "The tag $d must be kept exactly as written.",
                 'tag_added' => "The tag $d is not in the source.",
                 'tag_unbalanced' => 'Every opening tag must be closed, as in the source.',
@@ -161,11 +171,11 @@ final class Validator
     /**
      * @param list<array<int, mixed>> $nodes
      *
-     * @return array{args: array<string, list<string>>, select: array<string, list<string>>, plural: array<string, list<string>>, tags: list<string>, markup: bool, balanced: bool}
+     * @return array{args: array<string, list<string>>, select: array<string, list<string>>, plural: array<string, list<string>>, cardinal: list<string>, tags: list<string>, markup: bool, balanced: bool}
      */
     private static function signature(array $nodes): array
     {
-        $sig = ['args' => [], 'select' => [], 'plural' => [], 'tags' => [], 'markup' => false, 'balanced' => true];
+        $sig = ['args' => [], 'select' => [], 'plural' => [], 'cardinal' => [], 'tags' => [], 'markup' => false, 'balanced' => true];
         self::walk($nodes, $sig);
 
         foreach ($sig['args'] as $name => $types) {
@@ -199,6 +209,9 @@ final class Validator
                 case 'selectordinal':
                 case 'select':
                     $sig['args'][$node[1]][] = $node[0];
+                    if ($node[0] === 'plural') {
+                        $sig['cardinal'][] = $node[1];
+                    }
                     $key = $node[0] === 'select' ? 'select' : 'plural';
                     $sig[$key][$node[1]] = array_values(array_unique(array_merge($sig[$key][$node[1]] ?? [], array_map('strval', array_keys($node[2])))));
                     foreach ($node[2] as $branch) {

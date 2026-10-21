@@ -3,6 +3,7 @@
 namespace Ernestdefoe\Phrasebook\Provider;
 
 use Ernestdefoe\Phrasebook\Net\Response;
+use Ernestdefoe\Phrasebook\Strings\Languages;
 
 /**
  * What every language model is told, and how its answer is read back.
@@ -48,6 +49,7 @@ final class Prompt
             '- In {x, plural, ...} and {x, selectordinal, ...}, translate the text inside each branch and use the plural categories '.$job->language.' needs (zero, one, two, few, many, other). Always keep "other" and any exact cases such as =0.',
             '- In {x, select, ...}, keep every branch keyword unchanged and translate only the text inside the branches.',
             '- Inside a plural branch, # stands for the number. Keep it.',
+            ...self::pluralRule($job),
             '- Keep tags such as <a>...</a>, <b>...</b> or <username>...</username> exactly as written, with no attributes; translate the words between them. Add no other HTML or Markdown.',
             "- In ICU an apostrophe directly before { or } starts quoted text and would hide the placeholder. Write two apostrophes there instead, e.g. l''{username}.",
             '- The key shows where a string appears (a button, a label, a help text, an email). Keep buttons and labels as short as the English.',
@@ -72,8 +74,28 @@ final class Prompt
         $lines[] = '';
         $lines[] = 'The user sends a JSON array of strings, each with an id, its key and its English text. Some carry "feedback": why your last translation of that string was rejected; fix exactly that.';
         $lines[] = 'Reply with JSON only: {"translations":[{"id":"...","text":"..."}]}, one entry for every id, nothing else.';
+        // From convoro-translate: a quotation mark inside a translation, left
+        // unescaped, made the whole reply unreadable on a live run.
+        $lines[] = 'If a translation contains a quotation mark, escape it as \\" inside the JSON string.';
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * The plural forms the language needs, named: "use as many as your
+     * language needs" is answered inconsistently, a list is followed.
+     *
+     * @return list<string>
+     */
+    private static function pluralRule(Job $job): array
+    {
+        $forms = Languages::pluralCategories($job->locale);
+
+        if ($forms === null) {
+            return [];
+        }
+
+        return ['- In '.$job->language.' every {x, plural, ...} needs exactly these forms: '.implode(', ', $forms).'. Give each of them, even where two read the same.'];
     }
 
     public static function user(Job $job): string

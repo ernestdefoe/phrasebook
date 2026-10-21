@@ -173,7 +173,14 @@ class PhrasebookTest extends TestCase
         $run = $this->finish($id);
 
         $this->assertSame('review', $run['run']['status']);
-        $this->assertSame($strings, $run['counts']['translated']);
+        // The fake model copies the English, so a plural that gives only
+        // "other" is refused: Dutch needs "one" as well.
+        $failed = $this->database()->table('phrasebook_items')->where('run_id', $id)->where('status', 'failed')->pluck('errors')->all();
+        foreach ($failed as $errors) {
+            $this->assertStringContainsString('plural_form_missing', (string) $errors);
+        }
+        $this->assertSame($strings, $run['counts']['translated'] + count($failed));
+        $strings = $run['counts']['translated'];
         $this->assertEqualsWithDelta(count($this->http->sent) * 0.002, $run['run']['spent'], 1e-6);
         $this->assertStringContainsString('formally', $this->http->sent[0]['body']['messages'][0]['content']);
         $this->assertStringContainsString('tag => label', $this->http->sent[0]['body']['messages'][0]['content']);
@@ -186,7 +193,7 @@ class PhrasebookTest extends TestCase
         // Saved strings no longer count as missing.
         $scan = $this->json($this->call('GET', '/scan', 1, [], ['locale' => 'nl']));
         $linguist = array_values(array_filter($scan['groups'], fn ($g) => $g['namespace'] === 'core'))[0];
-        $this->assertSame(0, $linguist['missing']);
+        $this->assertSame(count($failed), $linguist['missing']);
 
         // And the export carries them.
         $export = $this->call('POST', '/export', 1, ['locale' => 'nl', 'format' => 'yaml']);

@@ -43,6 +43,62 @@ final class Languages
         return self::name($locale);
     }
 
+    /**
+     * The plural categories whole numbers take in this language, plus
+     * "other", as ICU (and so Flarum's translator) chooses them: German
+     * one/other, Russian one/few/many/other, Arabic all six, Japanese only
+     * other. Asked of ICU itself by formatting 0 to 220, so it is exactly
+     * what the forum will look up. Null without ext-intl.
+     *
+     * @return list<string>|null
+     */
+    public static function pluralCategories(string $locale): ?array
+    {
+        static $cache = [];
+
+        if (! class_exists(\MessageFormatter::class)) {
+            return null;
+        }
+
+        if (isset($cache[$locale])) {
+            return $cache[$locale];
+        }
+
+        $formatter = \MessageFormatter::create(str_replace('-', '_', $locale), '{n, plural, zero{zero} one{one} two{two} few{few} many{many} other{other}}');
+
+        if ($formatter === null) {
+            return null;
+        }
+
+        $found = ['other' => true];
+        for ($n = 0; $n <= 220; $n++) {
+            $found[(string) $formatter->format(['n' => $n])] = true;
+        }
+
+        $order = ['zero', 'one', 'two', 'few', 'many', 'other'];
+
+        return $cache[$locale] = array_values(array_intersect($order, array_keys($found)));
+    }
+
+    /**
+     * The installed locale an admin's code means: "pt_BR" when the pack is
+     * "pt-BR" must be stored as "pt-BR", or Flarum never reads it back.
+     *
+     * @param list<string> $installed
+     */
+    public static function canonical(string $locale, array $installed): string
+    {
+        $key = strtolower(str_replace('-', '_', $locale));
+
+        foreach ($installed as $code) {
+            if (strtolower(str_replace('-', '_', $code)) === $key) {
+                return $code;
+            }
+        }
+
+        return $locale;
+    }
+
     /** @return array{0: string, 1: string|null, 2: string|null} language, script, region */
     public static function parts(string $locale): array
     {

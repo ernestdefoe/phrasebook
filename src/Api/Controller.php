@@ -7,6 +7,7 @@ use Ernestdefoe\Phrasebook\Strings\Languages;
 use Flarum\Foundation\ValidationException;
 use Flarum\Http\Exception\RouteNotFoundException;
 use Flarum\Http\RequestUtil;
+use Flarum\Locale\LocaleManager;
 use Illuminate\Support\Arr;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
@@ -48,7 +49,9 @@ abstract class Controller implements RequestHandlerInterface
             throw new ValidationException(['locale' => 'invalid']);
         }
 
-        return $value;
+        // Spelled the way the installed pack spells it, or Linguist rows are
+        // written under a code Flarum never reads.
+        return Languages::canonical($value, array_keys(resolve(LocaleManager::class)->getLocales()));
     }
 
     protected function run(ServerRequestInterface $request): Run

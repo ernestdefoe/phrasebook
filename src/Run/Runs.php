@@ -219,7 +219,7 @@ class Runs
      * Writes the accepted strings into Linguist, where they override the
      * language pack, and remembers which English each was made from.
      *
-     * @return array{saved: int, skipped: int}
+     * @return array{saved: int, skipped: int, installed: bool}
      */
     public function saveToLinguist(Run $run): array
     {
@@ -270,7 +270,9 @@ class Runs
             $this->container->make(\FoF\Linguist\Repositories\CacheStatusRepository::class)->translationWasModified();
         }
 
-        return ['saved' => $saved, 'skipped' => $skipped];
+        // Linguist rows for a language no pack provides are stored and never
+        // shown: say so, rather than let it look like it worked.
+        return ['saved' => $saved, 'skipped' => $skipped, 'installed' => $this->container->make(\Flarum\Locale\LocaleManager::class)->hasLocale($run->locale)];
     }
 
     /**

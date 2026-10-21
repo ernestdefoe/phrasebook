@@ -368,7 +368,11 @@ export default class RunsTab extends Component {
   apply(result) {
     this.run = result.run;
     this.counts = result.counts;
-    if (result.saved !== undefined) this.message = t('runs.saved_message', { saved: number(result.saved), skipped: number(result.skipped) });
+    if (result.saved !== undefined)
+      this.message = [
+        t('runs.saved_message', { saved: number(result.saved), skipped: number(result.skipped) }),
+        result.installed === false ? [' ', t('runs.not_installed', { locale: result.run.locale })] : null,
+      ];
     if (result.accepted !== undefined) this.message = t('runs.accepted_message', { count: number(result.accepted) });
     this.lastChange ??= Date.now();
     m.redraw();
