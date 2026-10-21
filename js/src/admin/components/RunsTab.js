@@ -407,7 +407,13 @@ export default class RunsTab extends Component {
   drive(force = false) {
     clearTimeout(this.timer);
 
-    if (this.stopped || !ACTIVE.includes(this.run.status)) return;
+    // An action or "Continue in this browser" starts it again after giving up.
+    if (force) {
+      this.gaveUp = false;
+      this.failures = 0;
+    }
+
+    if (this.stopped || this.gaveUp || !ACTIVE.includes(this.run.status)) return;
 
     const here = force || this.driving || !this.attrs.app.data.queued;
     this.driving = here;
@@ -435,7 +441,7 @@ export default class RunsTab extends Component {
             // give up after a few, rather than hammer the forum.
             this.failures = (this.failures || 0) + 1;
             this.message = errorText(error);
-            if (this.failures >= 5) this.stopped = true;
+            if (this.failures >= 5) this.gaveUp = true;
           })
           .finally(() => this.drive());
       },
@@ -459,7 +465,7 @@ export default class RunsTab extends Component {
         this.apply(result);
         this.lastChange = Date.now();
         this.loadItems();
-        this.drive();
+        this.drive(true);
         this.attrs.app.reload();
       })
       .catch((error) => (this.message = errorText(error)))

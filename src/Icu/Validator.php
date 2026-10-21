@@ -69,8 +69,17 @@ final class Validator
 
         // The last word is ICU's own: anything PHP's formatter can't read is
         // refused, whatever the parser above thought of it.
-        if (class_exists(\MessageFormatter::class) && \MessageFormatter::create('en', $translation) === null) {
-            return [self::error('syntax', 'icu')];
+        if (class_exists(\MessageFormatter::class)) {
+            try {
+                $formatter = \MessageFormatter::create('en', $translation);
+            } catch (\IntlException) {
+                // intl.use_exceptions=1 throws where it would return null.
+                $formatter = null;
+            }
+
+            if ($formatter === null) {
+                return [self::error('syntax', 'icu')];
+            }
         }
 
         $errors = [];

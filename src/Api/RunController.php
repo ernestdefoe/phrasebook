@@ -45,7 +45,14 @@ class RunController extends Controller
                 'save' => $extra = $this->runs->saveToLinguist($run),
                 default => throw new \Flarum\Http\Exception\RouteNotFoundException(),
             };
-            $run->refresh();
+            $fresh = Run::query()->find($run->id);
+
+            // Deleted by another admin while this request worked.
+            if (! $fresh instanceof Run) {
+                throw new \Flarum\Http\Exception\RouteNotFoundException();
+            }
+
+            $run = $fresh;
         }
 
         return ['run' => self::present($run), 'counts' => $this->counts($run)] + $extra;

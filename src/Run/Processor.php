@@ -64,6 +64,8 @@ class Processor
         @set_time_limit(self::LEASE_SECONDS);
         ignore_user_abort(true);
 
+        $now = null;
+
         try {
             $this->work($run);
         } finally {
@@ -74,6 +76,9 @@ class Processor
             if ($now === 'cancelled') {
                 $run->status = 'cancelled';
                 $run->next_attempt_at = null;
+                // Stopping tidied the provider's state (a DeepL glossary):
+                // the batch's copy names what no longer exists.
+                $run->provider_state = $this->db->table('phrasebook_runs')->where('id', $run->id)->value('provider_state');
             }
 
             $run->locked_until = null;
@@ -83,7 +88,8 @@ class Processor
             }
         }
 
-        return $run->active();
+        // Deleted while the batch was out: nothing left to do.
+        return $now !== null && $run->active();
     }
 
     /**

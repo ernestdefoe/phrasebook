@@ -26,11 +26,11 @@ class ProcessRun extends AbstractJob
             return;
         }
 
-        $run->refresh();
+        $run = Run::query()->find($this->runId);
 
         // Another process holds the run (the admin page, or a second chain):
         // let that one carry it rather than racing it.
-        if ($run->locked_until !== null) {
+        if (! $run instanceof Run || $run->locked_until !== null) {
             return;
         }
 
