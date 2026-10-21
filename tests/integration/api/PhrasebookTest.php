@@ -273,4 +273,48 @@ class PhrasebookTest extends TestCase
         $this->assertSame(422, $this->call('POST', '/runs', 1, $base)->getStatusCode(), 'no key saved');
         $this->assertSame(422, $this->call('POST', '/runs', 1, ['model' => 'unpriced'] + $base)->getStatusCode(), 'no price');
     }
+
+    #[Test]
+    public function on_a_queue_a_run_is_a_chain_of_one_batch_jobs_that_backs_off(): void
+    {
+        $this->call('POST', '/keys/openai', 1, ['key' => 'sk-x']);
+        $this->answerBatches();
+        $id = $this->json($this->call('POST', '/runs', 1, ['locales' => ['nl'], 'reasons' => ['missing'], 'provider' => 'openai', 'model' => 'gpt-test', 'budget' => 5]))['runs'][0]['id'];
+
+        $queue = new class extends \Illuminate\Queue\NullQueue {
+            /** @var list<array{0: int, 1: mixed}> */
+            public array $pushed = [];
+
+            public function push($job, $data = '', $queue = null)
+            {
+                $this->pushed[] = [0, $job];
+            }
+
+            public function later($delay, $job, $data = '', $queue = null)
+            {
+                $this->pushed[] = [$delay, $job];
+            }
+        };
+
+        $container = $this->app()->getContainer();
+        $container->instance(Http::class, $this->http);
+        $job = new \Ernestdefoe\Phrasebook\Job\ProcessRun($id);
+        $job->handle($container->make(\Ernestdefoe\Phrasebook\Run\Processor::class), $queue);
+
+        // One batch done, the next job queued straight away.
+        $this->assertCount(1, $this->http->sent);
+        $this->assertSame([0], array_column($queue->pushed, 0));
+        $this->assertSame($id, $queue->pushed[0][1]->runId);
+
+        // A rate limit: the next job waits as long as the provider asked.
+        $limited = new FakeHttp();
+        $limited->answer(429, ['error' => ['message' => 'slow down']], ['retry-after' => '42']);
+        $container->instance(Http::class, $limited);
+        $container->forgetInstance(\Ernestdefoe\Phrasebook\Provider\Factory::class);
+        $job->handle($container->make(\Ernestdefoe\Phrasebook\Run\Processor::class), $queue);
+
+        $this->assertSame('waiting', $this->database()->table('phrasebook_runs')->where('id', $id)->value('status'));
+        $this->assertGreaterThanOrEqual(40, $queue->pushed[1][0]);
+        $this->assertLessThanOrEqual(42, $queue->pushed[1][0]);
+    }
 }
