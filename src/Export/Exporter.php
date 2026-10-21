@@ -51,12 +51,16 @@ class Exporter
 
         $strings = $full ? array_intersect_key($this->scanner->current($locale), $english) : [];
 
+        $hashes = [];
+
         foreach ($ours as $key => [$translation, $hash]) {
             if (isset($english[$key])) {
                 $strings[$key] = $translation;
-                $this->runs->remember($locale, $key, $hash);
+                $hashes[$key] = $hash;
             }
         }
+
+        $this->runs->remember($locale, $hashes);
 
         ksort($strings);
 

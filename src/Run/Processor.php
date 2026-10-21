@@ -108,7 +108,7 @@ class Processor
             ->orderBy('attempts')
             ->orderBy('id')
             ->limit($limit)
-            ->get(['id', 'key', 'source', 'errors', 'attempts']);
+            ->get(['id', 'run_id', 'key', 'namespace', 'reason', 'source', 'source_hash', 'current', 'errors', 'attempts']);
 
         if ($rows->isEmpty()) {
             $this->finish($run);
@@ -217,20 +217,33 @@ class Processor
     private function apply(Run $run, array $batch, array $translations, int $maxAttempts): void
     {
         $now = Carbon::now();
+        $rows = [];
 
         foreach ($batch as $row) {
             $text = $translations[(string) $row->id] ?? null;
             $errors = $text === null ? [['code' => 'no_answer', 'detail' => '']] : Validator::check((string) $row->source, $text);
             $attempts = (int) $row->attempts + 1;
 
-            $this->db->table('phrasebook_items')->where('id', $row->id)->update([
+            $rows[] = [
+                'id' => $row->id,
+                'run_id' => $row->run_id,
+                'key' => $row->key,
+                'namespace' => $row->namespace,
+                'reason' => $row->reason,
+                'source' => $row->source,
+                'source_hash' => $row->source_hash,
+                'current' => $row->current,
                 'translation' => $text,
                 'attempts' => $attempts,
                 'errors' => $errors ? json_encode($errors) : null,
                 'status' => $errors === [] ? 'translated' : ($attempts >= $maxAttempts ? 'failed' : 'pending'),
                 'updated_at' => $now,
-            ]);
+            ];
         }
+
+        // One statement for the whole batch: every row exists, so this only
+        // ever takes the update path.
+        $this->db->table('phrasebook_items')->upsert($rows, ['id'], ['translation', 'attempts', 'errors', 'status', 'updated_at']);
     }
 
     /**

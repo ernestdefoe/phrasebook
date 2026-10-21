@@ -229,7 +229,7 @@ class Runs
             ->where('run_id', $run->id)
             ->where('status', 'accepted')
             ->orderBy('id')
-            ->chunkById(200, function ($items) use ($run, &$saved, &$skipped, $now) {
+            ->chunkById(500, function ($items) use ($run, &$saved, &$skipped, $now) {
                 $strings = [];
                 $ledger = [];
                 $ids = [];
@@ -267,12 +267,23 @@ class Runs
         return ['saved' => $saved, 'skipped' => $skipped];
     }
 
-    public function remember(string $locale, string $key, string $hash): void
+    /**
+     * Records which English each exported string was made from, so a later
+     * change to the English shows it as out of date.
+     *
+     * @param array<string, string> $hashes key => sha1 of the English
+     */
+    public function remember(string $locale, array $hashes): void
     {
-        $this->db->table('phrasebook_ledger')->updateOrInsert(
-            ['locale' => $locale, 'key' => $key],
-            ['source_hash' => $hash, 'updated_at' => Carbon::now()]
-        );
+        $now = Carbon::now();
+
+        foreach (array_chunk($hashes, 500, true) as $chunk) {
+            $rows = [];
+            foreach ($chunk as $key => $hash) {
+                $rows[] = ['locale' => $locale, 'key' => (string) $key, 'source_hash' => $hash, 'updated_at' => $now];
+            }
+            $this->db->table('phrasebook_ledger')->upsert($rows, ['locale', 'key'], ['source_hash', 'updated_at']);
+        }
     }
 
     /** Lets the provider remove anything it made for the run (a DeepL glossary). */
