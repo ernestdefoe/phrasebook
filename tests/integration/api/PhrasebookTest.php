@@ -134,7 +134,7 @@ class PhrasebookTest extends TestCase
     #[Test]
     public function the_key_is_stored_encrypted_and_never_sent_back(): void
     {
-        $saved = $this->call('POST', '/keys/openai', 1, ['key' => 'sk-proj-SECRETSECRETSECRET1234']);
+        $saved = $this->call('POST', '/keys/openai', 1, ['key' => 'sk-proj-SECRETSECRETSECRET1234']); // gitleaks:allow (a made-up test key)
         $this->assertSame(200, $saved->getStatusCode());
         $this->assertSame('…1234', $this->json($saved)['keyHint']);
 

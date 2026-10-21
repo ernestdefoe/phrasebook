@@ -97,7 +97,9 @@ class Exporter
             $ns = Scanner::namespace($key);
             // Keys under a name no enabled extension has go in core.yml,
             // which is always loaded.
-            $file = in_array($ns, ['core', 'validation'], true) || $this->extensions->isEnabled($ns) ? $ns : 'core';
+            // The namespace names a file in the zip: only a plain extension id
+            // may, never anything with a path in it.
+            $file = preg_match('/^[a-z0-9][a-z0-9_-]{0,99}$/i', $ns) && (in_array($ns, ['core', 'validation'], true) || $this->extensions->isEnabled($ns)) ? $ns : 'core';
             $files[$file][$key] = $value;
         }
 

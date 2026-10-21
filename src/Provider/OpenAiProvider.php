@@ -23,7 +23,7 @@ final class OpenAiProvider implements Provider
         private readonly Http $http,
         private readonly string $id,
         private readonly string $base,
-        private readonly ?string $key,
+        #[\SensitiveParameter] private readonly ?string $key,
         private readonly bool $allowLocal
     ) {
     }

@@ -22,7 +22,7 @@ final class AnthropicProvider implements Provider
     /** Models whose classifiers can decline; a fallback model answers instead. */
     private const FALLBACK = '/^claude-(fable-5-1|opus-5|sonnet-5-5)/';
 
-    public function __construct(private readonly Http $http, private readonly string $key)
+    public function __construct(private readonly Http $http, #[\SensitiveParameter] private readonly string $key)
     {
     }
 

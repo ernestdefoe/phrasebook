@@ -10,7 +10,7 @@ final class GeminiProvider implements Provider
 {
     private const BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
-    public function __construct(private readonly Http $http, private readonly string $key)
+    public function __construct(private readonly Http $http, #[\SensitiveParameter] private readonly string $key)
     {
     }
 

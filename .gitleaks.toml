@@ -1,0 +1,8 @@
+# The tests use made-up keys (sk-x, deepl-key:fx, sk-proj-SECRET…) on purpose:
+# they prove a key is sent to the provider and never shown back.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Made-up keys in tests"
+paths = ['''tests/unit/ProvidersTest\.php''', '''tests/integration/api/PhrasebookTest\.php''']

@@ -280,4 +280,22 @@ class ProvidersTest extends TestCase
         $this->assertFalse(Languages::valid('../x'));
         $this->assertFalse(Languages::valid('de;drop'));
     }
+
+    public function test_a_key_never_appears_in_a_stack_trace(): void
+    {
+        // storage/ that can't hold the encryption key: saving a key throws,
+        // and that exception (and its trace) ends up in the forum's log.
+        $storage = tempnam(sys_get_temp_dir(), 'pb');
+        $paths = new \Flarum\Foundation\Paths(['base' => sys_get_temp_dir(), 'public' => sys_get_temp_dir(), 'storage' => $storage]);
+        $vault = new \Ernestdefoe\Phrasebook\Settings\Vault($this->createStub(\Illuminate\Database\ConnectionInterface::class), $paths);
+
+        try {
+            $vault->put('openai', 'sk-TOPSECRET-1234567890');
+            $this->fail('no exception');
+        } catch (\RuntimeException $e) {
+            $this->assertStringNotContainsString('TOPSECRET', $e->getTraceAsString());
+        } finally {
+            @unlink($storage);
+        }
+    }
 }

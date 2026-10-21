@@ -32,7 +32,7 @@ class Http
      * @param array<string, string> $headers
      * @param array<mixed>|null $json body, sent as JSON; null for GET
      */
-    public function request(string $method, string $url, array $headers, ?array $json, bool $allowLocal, int $timeout = 120): Response
+    public function request(string $method, string $url, #[\SensitiveParameter] array $headers, ?array $json, bool $allowLocal, int $timeout = 120): Response
     {
         $target = $this->target($url, $allowLocal);
 
@@ -124,7 +124,7 @@ class Http
      * @param array{url: string, host: string, port: int, ip: string} $target
      * @param array<string, string> $headers
      */
-    protected function send(string $method, array $target, array $headers, ?string $body, int $timeout): Response
+    protected function send(string $method, array $target, #[\SensitiveParameter] array $headers, ?string $body, int $timeout): Response
     {
         $pin = str_contains($target['ip'], ':') ? '['.$target['ip'].']' : $target['ip'];
         $lines = ['Accept: application/json', 'User-Agent: Phrasebook (Flarum)'];

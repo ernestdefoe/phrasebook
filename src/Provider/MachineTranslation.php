@@ -20,7 +20,7 @@ abstract class MachineTranslation implements Provider
     /** Characters per request, kept well under both APIs' limits. */
     protected const CHARS_PER_REQUEST = 20000;
 
-    public function __construct(protected readonly Http $http, protected readonly string $key)
+    public function __construct(protected readonly Http $http, #[\SensitiveParameter] protected readonly string $key)
     {
     }
 

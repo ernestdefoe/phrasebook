@@ -26,11 +26,13 @@ class Vault
     {
     }
 
-    public function put(string $provider, string $secret): void
+    public function put(string $provider, #[\SensitiveParameter] string $secret): void
     {
+        $encrypted = $this->encrypt($secret);
+
         $this->db->table(self::TABLE)->updateOrInsert(
             ['provider' => $provider],
-            ['secret' => $this->encrypt($secret), 'hint' => mb_substr($secret, -4), 'updated_at' => date('Y-m-d H:i:s')]
+            ['secret' => $encrypted, 'hint' => mb_substr($secret, -4), 'updated_at' => date('Y-m-d H:i:s')]
         );
     }
 
@@ -56,7 +58,7 @@ class Vault
         return $this->db->table(self::TABLE)->pluck('hint', 'provider')->map(fn ($hint) => (string) $hint)->all();
     }
 
-    private function encrypt(string $plain): string
+    private function encrypt(#[\SensitiveParameter] string $plain): string
     {
         $key = $this->key();
 

@@ -34,7 +34,8 @@ class Processor
     /** Retryable failures in a row before the run pauses for the admin. */
     public const MAX_FAILURES = 8;
 
-    private const LEASE_SECONDS = 900;
+    /** Longer than the slowest call (local models: 600 s), so a lease outlives its batch. */
+    private const LEASE_SECONDS = 660;
 
     public function __construct(
         private readonly ConnectionInterface $db,
@@ -53,6 +54,12 @@ class Processor
         if (! $this->lease($run)) {
             return $run->active();
         }
+
+        // A batch can take minutes on a local model. Neither PHP's time limit
+        // nor the admin closing the page may cut it off after the provider
+        // has done (and billed) the work.
+        @set_time_limit(self::LEASE_SECONDS);
+        ignore_user_abort(true);
 
         try {
             $this->work($run);
