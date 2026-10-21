@@ -333,7 +333,11 @@ export default class RunsTab extends Component {
 
   load() {
     return api('GET', `/runs/${this.runId}`)
-      .then((result) => this.apply(result))
+      .then((result) => {
+        this.apply(result);
+        // Open on the first list that has something in it.
+        if (!this.counts[this.filter.status]) this.filter.status = STATUSES.find((s) => this.counts[s]) || this.filter.status;
+      })
       .then(() => this.loadItems())
       .then(() => this.drive());
   }

@@ -92,8 +92,19 @@ class StartController extends Controller
             throw new ValidationException(['budget' => 'invalid']);
         }
 
+        // One open run per language: a second would translate the same
+        // strings again while the first still waits for review.
         foreach ($locales as $locale) {
-            if (Run::query()->where('locale', $locale)->whereIn('status', [...Run::ACTIVE, 'paused'])->exists()) {
+            $open = Run::query()->where('locale', $locale)->where(fn ($q) => $q
+                ->whereIn('status', [...Run::ACTIVE, 'paused'])
+                ->orWhere(fn ($q) => $q->whereIn('status', ['review', 'cancelled'])->whereExists(fn ($q) => $q
+                    ->selectRaw('1')
+                    ->from('phrasebook_items')
+                    ->whereColumn('phrasebook_items.run_id', 'phrasebook_runs.id')
+                    ->whereIn('phrasebook_items.status', ['pending', 'translated', 'accepted', 'failed']))))
+                ->exists();
+
+            if ($open) {
                 throw new ValidationException(['locales' => 'run_active']);
             }
         }

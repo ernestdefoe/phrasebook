@@ -136,8 +136,8 @@ export default class ProviderTab extends Component {
             </Button>
           </div>
           <datalist id="phrasebook-models">
-            {(list || []).map((m) => (
-              <option value={m.id}>{m.label !== m.id ? m.label : null}</option>
+            {(list || []).map((model) => (
+              <option value={model.id}>{model.label !== model.id ? model.label : null}</option>
             ))}
           </datalist>
           <p className="helpText">

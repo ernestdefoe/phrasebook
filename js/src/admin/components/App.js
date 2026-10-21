@@ -56,11 +56,17 @@ export default class App extends Component {
             </Button>
           ))}
         </nav>
-        {this.tab === 'provider' ? <ProviderTab app={app} /> : null}
-        {this.tab === 'translate' ? <TranslateTab app={app} /> : null}
-        {this.tab === 'runs' ? <RunsTab app={app} open={this.openRun} key={this.openRun || 'list'} /> : null}
+        <div className="Phrasebook-panel">{this.panel(app)}</div>
       </div>
     );
+  }
+
+  panel(app) {
+    if (this.tab === 'provider') return <ProviderTab app={app} />;
+    if (this.tab === 'translate') return <TranslateTab app={app} />;
+
+    // Keyed, so opening another run starts its review afresh.
+    return [<RunsTab app={app} open={this.openRun} key={this.openRun || 'list'} />];
   }
 
   go(tab, run = null) {

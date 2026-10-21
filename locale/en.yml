@@ -224,7 +224,7 @@ ernestdefoe-phrasebook:
       generic: Something went wrong. Please try again.
       locale_invalid: "That isn't a language code (examples: de, pt_BR, zh_Hans)."
       locales_required: Pick at least one language.
-      locales_run_active: "A run for this language is already going or paused. Finish or stop it first."
+      locales_run_active: "This language already has a run with strings waiting for you. Save, reject or delete them first (Runs tab)."
       reasons_required: Pick what to translate.
       model_invalid: Choose a model on the Provider tab.
       provider_invalid: Choose a provider on the Provider tab.
