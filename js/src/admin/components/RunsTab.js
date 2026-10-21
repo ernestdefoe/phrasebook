@@ -188,7 +188,30 @@ export default class RunsTab extends Component {
   statusNote(run) {
     if (run.status === 'waiting') return <p className="helpText">{t('runs.waiting', { error: known(`failure.${run.error}`) || run.error })}</p>;
     if (run.status === 'paused') {
-      if (run.error === 'budget') return <p className="Phrasebook-bad">{t('runs.paused_budget')}</p>;
+      if (run.error === 'budget')
+        return (
+          <div className="Phrasebook-row">
+            <span className="Phrasebook-bad">{t('runs.paused_budget')}</span>
+            <span>$</span>
+            <input
+              className="FormControl Phrasebook-narrow"
+              type="number"
+              min={run.spent}
+              step="0.5"
+              aria-label={t('runs.new_budget')}
+              value={this.newBudget ?? ''}
+              placeholder={String(Math.ceil(run.budget * 2))}
+              oninput={(e) => (this.newBudget = e.target.value)}
+            />
+            <Button
+              className="Button Button--primary"
+              disabled={!(parseFloat(this.newBudget) > run.spent)}
+              onclick={() => this.action('resume', { budget: this.newBudget })}
+            >
+              {t('runs.raise_budget')}
+            </Button>
+          </div>
+        );
       if (run.error === 'no_price') return <p className="Phrasebook-bad">{t('runs.paused_price')}</p>;
       return <p className="Phrasebook-bad">{failureText({ kind: run.error, detail: run.message })}</p>;
     }
@@ -415,11 +438,11 @@ export default class RunsTab extends Component {
     return !this.driving && Date.now() - (this.lastChange || Date.now()) > 60000;
   }
 
-  action(name) {
+  action(name, body) {
     if (name === 'save' && !confirm(t('runs.save_confirm', { count: number(this.counts.accepted), locale: this.run.locale }))) return;
 
     this.message = null;
-    api('POST', `/runs/${this.runId}/${name}`)
+    api('POST', `/runs/${this.runId}/${name}`, body)
       .then((result) => {
         this.apply(result);
         this.lastChange = Date.now();

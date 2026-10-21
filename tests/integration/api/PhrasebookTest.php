@@ -216,6 +216,14 @@ class PhrasebookTest extends TestCase
         $this->assertSame('budget', $run['run']['error']);
         $this->assertLessThanOrEqual($budget, $run['run']['spent']);
         $this->assertGreaterThan(0, $run['counts']['pending']);
+
+        // The admin raises the cap and the run carries on; a cap below what
+        // was already spent is refused.
+        $this->assertSame(422, $this->call('POST', "/runs/$id/resume", 1, ['budget' => 0.001])->getStatusCode());
+        $resumed = $this->json($this->call('POST', "/runs/$id/resume", 1, ['budget' => 50]));
+        $this->assertSame('queued', $resumed['run']['status']);
+        $this->assertSame(50.0, (float) $resumed['run']['budget']);
+        $this->assertSame('review', $this->finish($id)['run']['status']);
     }
 
     #[Test]

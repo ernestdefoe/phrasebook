@@ -39,7 +39,7 @@ class RunController extends Controller
         if ($request->getMethod() === 'POST') {
             match ($action) {
                 'step' => $this->processor->step($run),
-                'resume' => $this->runs->resume($run),
+                'resume' => $this->runs->resume($run, $this->budget($request, $run)),
                 'cancel' => $this->runs->cancel($run),
                 'accept-all' => $extra['accepted'] = $this->runs->acceptAll($run),
                 'save' => $extra = $this->runs->saveToLinguist($run),
@@ -49,6 +49,22 @@ class RunController extends Controller
         }
 
         return ['run' => self::present($run), 'counts' => $this->counts($run)] + $extra;
+    }
+
+    /** A new budget sent with "resume", for a run paused at its cap. */
+    private function budget(ServerRequestInterface $request, Run $run): ?float
+    {
+        $budget = $this->input($request, 'budget');
+
+        if ($budget === null || $budget === '') {
+            return null;
+        }
+
+        if (! is_numeric($budget) || (float) $budget < (float) $run->spent || (float) $budget > 10000) {
+            throw new \Flarum\Foundation\ValidationException(['budget' => 'invalid']);
+        }
+
+        return round((float) $budget, 4);
     }
 
     /**

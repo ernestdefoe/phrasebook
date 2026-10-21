@@ -111,9 +111,15 @@ class Runs
     }
 
     /** Back to work after a pause, a cancel, or retries the admin asked for. */
-    public function resume(Run $run): void
+    public function resume(Run $run, ?float $budget = null): void
     {
+        if ($budget !== null) {
+            $run->budget = (string) $budget;
+        }
+
         if ($run->active()) {
+            $run->save();
+
             return;
         }
 

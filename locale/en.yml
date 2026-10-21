@@ -131,7 +131,9 @@ ernestdefoe-phrasebook:
       delete_confirm: "Delete this run and its translations? Strings already saved to Linguist stay."
       linguist_missing: "Enable FoF Linguist to save straight to the forum, or export a file below."
       waiting: "Waiting before trying again ({error})."
-      paused_budget: "Paused: the next request could go over the budget. Raise it by starting a new run, or review what is done."
+      paused_budget: "Paused: the next request could go over the budget."
+      new_budget: New budget
+      raise_budget: Raise the budget and resume
       paused_price: "Paused: this model has no price. Enter one on the Provider tab, then resume."
       keep_open: "This forum has no queue worker, so this page does the translating: keep it open until the run is ready for review."
       queued_note: Running on the queue. You can leave this page.
