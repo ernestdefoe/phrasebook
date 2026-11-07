@@ -201,6 +201,7 @@ export default class TranslateTab extends Component {
     if (scan.error) return <p className="Phrasebook-bad">{scan.error}</p>;
 
     const groups = this.pending(scan);
+    const pending = new Set(groups);
     const excluded = this.excludedFor(code);
     const on = groups.filter((g) => !excluded.has(g.namespace)).length;
     const sum = (field) => scan.groups.reduce((n, g) => n + g[field], 0);
@@ -216,7 +217,8 @@ export default class TranslateTab extends Component {
             total: number(sum('total')),
           })}
         </p>
-        {groups.length ? (
+        {groups.length ? null : <p>{t('translate.complete')}</p>}
+        {scan.groups.length ? (
           <div className="Phrasebook-tableWrap">
             <table className="Phrasebook-table">
               <thead>
@@ -225,7 +227,8 @@ export default class TranslateTab extends Component {
                     <input
                       type="checkbox"
                       aria-label={t('translate.all')}
-                      checked={on === groups.length}
+                      disabled={!groups.length}
+                      checked={groups.length > 0 && on === groups.length}
                       indeterminate={on > 0 && on < groups.length}
                       onchange={(e) => groups.forEach((g) => this.toggle(excluded, g.namespace, !e.target.checked))}
                     />
@@ -238,31 +241,35 @@ export default class TranslateTab extends Component {
                 </tr>
               </thead>
               <tbody>
-                {groups.map((g) => (
-                  <tr>
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={g.title}
-                        checked={!excluded.has(g.namespace)}
-                        onchange={(e) => this.toggle(excluded, g.namespace, !e.target.checked)}
-                      />
-                    </td>
-                    <td>
-                      {g.title} <span className="Phrasebook-muted">{g.namespace}</span>
-                    </td>
-                    <td>{number(g.missing)}</td>
-                    <td>{number(g.stale)}</td>
-                    <td>{number(g.identical)}</td>
-                    <td>{number(g.total)}</td>
-                  </tr>
-                ))}
+                {scan.groups.map((g) => {
+                  const done = !pending.has(g);
+
+                  return (
+                    <tr className={done ? 'Phrasebook-done' : ''}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          aria-label={g.title}
+                          disabled={done}
+                          checked={!done && !excluded.has(g.namespace)}
+                          onchange={(e) => this.toggle(excluded, g.namespace, !e.target.checked)}
+                        />
+                      </td>
+                      <td>
+                        {g.title} <span className="Phrasebook-muted">{g.namespace}</span>
+                        {done ? <span className="Phrasebook-muted"> · {t('translate.up_to_date')}</span> : null}
+                      </td>
+                      <td>{number(g.missing)}</td>
+                      <td>{number(g.stale)}</td>
+                      <td>{number(g.identical)}</td>
+                      <td>{number(g.total)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        ) : (
-          <p>{t('translate.complete')}</p>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -383,7 +390,7 @@ export default class TranslateTab extends Component {
     this.custom = '';
   }
 
-  /** The extensions with something to translate: the rows of a language's table. */
+  /** The extensions with something to translate: the rows that can be ticked. */
   pending(scan) {
     return scan.groups.filter((g) => g.missing + g.stale + g.identical > 0);
   }

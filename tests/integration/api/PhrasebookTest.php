@@ -203,6 +203,28 @@ class PhrasebookTest extends TestCase
     }
 
     #[Test]
+    public function an_extension_with_nothing_left_to_translate_is_still_listed(): void
+    {
+        $english = $this->app()->getContainer()->make(\Ernestdefoe\Phrasebook\Strings\Scanner::class)->english();
+        $rows = [];
+        foreach ($english as $key => $source) {
+            if (str_starts_with($key, 'validation.')) {
+                $rows[] = ['key' => $key, 'value' => $source.' (nl)', 'locale' => 'nl'];
+            }
+        }
+        $this->assertNotEmpty($rows);
+        $this->database()->table('fof_linguist_strings')->insert($rows);
+
+        $groups = array_column($this->json($this->call('GET', '/scan', 1, [], ['locale' => 'nl']))['groups'], null, 'namespace');
+
+        // The admin shows it as up to date, so a fully translated extension
+        // doesn't vanish from the list.
+        $this->assertArrayHasKey('validation', $groups);
+        $this->assertSame(0, $groups['validation']['missing'] + $groups['validation']['stale'] + $groups['validation']['identical']);
+        $this->assertSame(count($rows), $groups['validation']['total']);
+    }
+
+    #[Test]
     public function each_language_translates_only_the_extensions_ticked_under_it(): void
     {
         $this->call('POST', '/keys/openai', 1, ['key' => 'sk-x']);

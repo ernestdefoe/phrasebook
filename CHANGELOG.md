@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- Every extension is listed under every language. An extension with nothing left to translate is shown as up to date (greyed out, can't be ticked) instead of disappearing, so a language whose pack covers most extensions, like Chinese (Simplified), no longer looks like it is missing installed extensions.
+
 ## 1.0.1
 
 - Each language's table now has its own ticks: the box at the top of a table ticks or unticks every extension in that table and no other, and shows a dash when only some are ticked. Before, all tables shared one set of ticks, so unticking one table changed rows in the others and left rows ticked that only appeared in other tables.
