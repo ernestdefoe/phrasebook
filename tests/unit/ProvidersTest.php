@@ -13,6 +13,7 @@ use Ernestdefoe\Phrasebook\Provider\Pricing;
 use Ernestdefoe\Phrasebook\Provider\Prompt;
 use Ernestdefoe\Phrasebook\Provider\ProviderError;
 use Ernestdefoe\Phrasebook\Provider\Usage;
+use Ernestdefoe\Phrasebook\Run\Estimator;
 use Ernestdefoe\Phrasebook\Strings\Languages;
 use PHPUnit\Framework\TestCase;
 
@@ -318,5 +319,18 @@ class ProvidersTest extends TestCase
             $this->assertSame('rate_limit', $e->error->kind);
             $this->assertSame(array_sum(array_map(fn ($i) => mb_strlen("String number $i"), range(0, 49))), $e->usage->characters);
         }
+    }
+
+    #[Test]
+    public function an_estimate_with_nothing_to_translate_costs_nothing(): void
+    {
+        $price = ['in' => 1.0, 'out' => 5.0];
+        $llm = Estimator::dryRun([], 25, 'llm', $price, $this->job('m'));
+        $this->assertSame([0, 0, 0.0, 0.0], [$llm['strings'], $llm['batches'], $llm['low'], $llm['high']]);
+        $this->assertNull(Estimator::dryRun([], 25, 'mt', null, $this->job('m'))['low']);
+
+        $one = Estimator::dryRun(['core.x' => 'Reply'], 25, 'llm', $price, $this->job('m'));
+        $this->assertGreaterThan(0, $one['low']);
+        $this->assertLessThanOrEqual($one['high'], $one['low']);
     }
 }

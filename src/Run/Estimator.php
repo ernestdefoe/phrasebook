@@ -79,6 +79,13 @@ final class Estimator
         $batches = (int) ceil($strings / max(1, $batchSize));
         $result = ['strings' => $strings, 'batches' => $batches, 'input_tokens' => 0, 'output_tokens' => 0, 'characters' => 0, 'low' => null, 'high' => null];
 
+        // Nothing ticked for this language: it is skipped, so it costs nothing.
+        if ($strings === 0) {
+            $result['low'] = $result['high'] = $price === null ? null : 0.0;
+
+            return $result;
+        }
+
         if ($kind === 'mt') {
             $items = [];
             foreach ($sources as $key => $text) {

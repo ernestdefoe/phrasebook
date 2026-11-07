@@ -203,6 +203,40 @@ class PhrasebookTest extends TestCase
     }
 
     #[Test]
+    public function each_language_translates_only_the_extensions_ticked_under_it(): void
+    {
+        $this->call('POST', '/keys/openai', 1, ['key' => 'sk-x']);
+        $base = ['dry' => true, 'reasons' => ['missing'], 'provider' => 'openai', 'model' => 'gpt-test', 'budget' => 5];
+        $count = fn (string $locale, array $namespaces) => $this->json($this->call('POST', '/runs', 1, $base + ['locales' => [$locale], 'namespaces' => $namespaces]))['locales'][$locale]['strings'];
+
+        $core = $count('nl', ['core']);
+        $validation = $count('fr', ['validation']);
+        $this->assertGreaterThan(0, $core);
+        $this->assertGreaterThan(0, $validation);
+
+        // One request, each language with its own ticks; one with none ticked.
+        $estimate = $this->json($this->call('POST', '/runs', 1, $base + [
+            'locales' => ['nl', 'fr', 'de'],
+            'namespaces' => ['nl' => ['core'], 'fr' => ['validation'], 'de' => []],
+        ]));
+        $this->assertSame($core, $estimate['locales']['nl']['strings']);
+        $this->assertSame($validation, $estimate['locales']['fr']['strings']);
+        $this->assertSame(0, $estimate['locales']['de']['strings']);
+
+        // A language left out of the map gets everything, as a plain list always did.
+        $all = $this->json($this->call('POST', '/runs', 1, $base + ['locales' => ['nl', 'fr'], 'namespaces' => ['nl' => ['core']]]));
+        $this->assertGreaterThan($core, $all['locales']['fr']['strings']);
+
+        // Starting skips the language with nothing ticked.
+        $this->answerBatches();
+        $started = $this->json($this->call('POST', '/runs', 1, ['dry' => false] + $base + [
+            'locales' => ['nl', 'de'],
+            'namespaces' => ['nl' => ['validation'], 'de' => []],
+        ]));
+        $this->assertSame(['nl'], array_column($started['runs'], 'locale'));
+    }
+
+    #[Test]
     public function the_budget_is_never_exceeded(): void
     {
         $this->call('POST', '/keys/openai', 1, ['key' => 'sk-x']);

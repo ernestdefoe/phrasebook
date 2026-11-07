@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1
+
+- Each language's table now has its own ticks: the box at the top of a table ticks or unticks every extension in that table and no other, and shows a dash when only some are ticked. Before, all tables shared one set of ticks, so unticking one table changed rows in the others and left rows ticked that only appeared in other tables.
+- A language with nothing ticked is skipped and its estimate says so, instead of showing a cost for 0 strings.
+- You can type in the "Add language" field again (a key handler swallowed every key but Enter).
+- Rebuilt with flarum-webpack-config 3.1.0.
+
 ## 1.0.0
 
 First release.

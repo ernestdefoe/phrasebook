@@ -33,8 +33,7 @@ class StartController extends Controller
     protected function respond(ServerRequestInterface $request): mixed
     {
         $locales = array_map(fn ($l) => $this->locale($l), $this->strings($this->input($request, 'locales'), 20));
-        $namespaces = $this->input($request, 'namespaces');
-        $namespaces = is_array($namespaces) ? $this->strings($namespaces) : null;
+        $namespaces = $this->namespaces($this->input($request, 'namespaces'), $locales);
         $reasons = array_values(array_intersect($this->strings($this->input($request, 'reasons')), Scanner::REASONS));
         $provider = (string) $this->input($request, 'provider', '');
         $model = trim((string) $this->input($request, 'model', ''));
@@ -65,7 +64,7 @@ class StartController extends Controller
         $plans = [];
 
         foreach ($locales as $locale) {
-            $strings = $this->scanner->scan($locale, $reasons, $namespaces);
+            $strings = $this->scanner->scan($locale, $reasons, $namespaces[$locale]);
             $sources = array_map(fn ($row) => $row['source'], $strings);
             $plans[$locale] = [
                 'strings' => $strings,
@@ -136,5 +135,32 @@ class StartController extends Controller
         }
 
         return ['runs' => $started, 'queued' => $this->runs->queued()];
+    }
+
+    /**
+     * The extensions to translate, per locale: one list for every locale, or
+     * {locale: list} as the admin page sends it, where each language has its
+     * own ticks. Null means all of them.
+     *
+     * @param list<string> $locales
+     *
+     * @return array<string, list<string>|null>
+     */
+    private function namespaces(mixed $value, array $locales): array
+    {
+        if (! is_array($value) || array_is_list($value)) {
+            return array_fill_keys($locales, is_array($value) ? $this->strings($value) : null);
+        }
+
+        $out = array_fill_keys($locales, null);
+
+        foreach (array_slice($value, 0, 20, true) as $locale => $list) {
+            $locale = $this->locale((string) $locale);
+            if (array_key_exists($locale, $out)) {
+                $out[$locale] = is_array($list) ? $this->strings($list) : null;
+            }
+        }
+
+        return $out;
     }
 }

@@ -20,7 +20,8 @@ export default class TranslateTab extends Component {
     this.locales = data.locales.length ? [data.locales[0].code] : [];
     this.custom = '';
     this.scans = {};
-    this.excluded = new Set();
+    // Per language: unticking an extension under French leaves German alone.
+    this.excluded = {};
     this.reasons = new Set(['missing', 'stale']);
     this.budget = app.data.settings[SETTING('budget')] || '5';
     this.estimate = null;
@@ -61,7 +62,9 @@ export default class TranslateTab extends Component {
               value={this.custom}
               aria-label={t('translate.add_language')}
               oninput={(e) => (this.custom = e.target.value.trim())}
-              onkeydown={(e) => e.key === 'Enter' && this.addCustom()}
+              onkeydown={(e) => {
+                if (e.key === 'Enter') this.addCustom();
+              }}
             />
             <Button className="Button" onclick={() => this.addCustom()} disabled={!LOCALE.test(this.custom) || this.custom === 'en'}>
               {t('translate.add_language')}
@@ -197,7 +200,9 @@ export default class TranslateTab extends Component {
     if (!scan) return <LoadingIndicator display="inline" />;
     if (scan.error) return <p className="Phrasebook-bad">{scan.error}</p>;
 
-    const groups = scan.groups.filter((g) => g.missing + g.stale + g.identical > 0);
+    const groups = this.pending(scan);
+    const excluded = this.excludedFor(code);
+    const on = groups.filter((g) => !excluded.has(g.namespace)).length;
     const sum = (field) => scan.groups.reduce((n, g) => n + g[field], 0);
 
     return (
@@ -220,8 +225,9 @@ export default class TranslateTab extends Component {
                     <input
                       type="checkbox"
                       aria-label={t('translate.all')}
-                      checked={groups.every((g) => !this.excluded.has(g.namespace))}
-                      onchange={(e) => groups.forEach((g) => this.toggle(this.excluded, g.namespace, !e.target.checked))}
+                      checked={on === groups.length}
+                      indeterminate={on > 0 && on < groups.length}
+                      onchange={(e) => groups.forEach((g) => this.toggle(excluded, g.namespace, !e.target.checked))}
                     />
                   </th>
                   <th>{t('translate.extension')}</th>
@@ -238,8 +244,8 @@ export default class TranslateTab extends Component {
                       <input
                         type="checkbox"
                         aria-label={g.title}
-                        checked={!this.excluded.has(g.namespace)}
-                        onchange={(e) => this.toggle(this.excluded, g.namespace, !e.target.checked)}
+                        checked={!excluded.has(g.namespace)}
+                        onchange={(e) => this.toggle(excluded, g.namespace, !e.target.checked)}
                       />
                     </td>
                     <td>
@@ -271,15 +277,17 @@ export default class TranslateTab extends Component {
         {Object.entries(e.locales).map(([code, est]) => (
           <p>
             <strong>{code}</strong>:{' '}
-            {est.characters
-              ? t('translate.estimate_mt', { strings: number(est.strings), characters: number(est.characters) })
-              : t('translate.estimate_llm', {
-                  strings: number(est.strings),
-                  batches: number(est.batches),
-                  input: number(est.input_tokens),
-                  output: number(est.output_tokens),
-                })}{' '}
-            {priced ? t('translate.estimate_cost', { low: money(est.low), high: money(est.high) }) : null}
+            {!est.strings
+              ? t('translate.estimate_none')
+              : est.characters
+                ? t('translate.estimate_mt', { strings: number(est.strings), characters: number(est.characters) })
+                : t('translate.estimate_llm', {
+                    strings: number(est.strings),
+                    batches: number(est.batches),
+                    input: number(est.input_tokens),
+                    output: number(est.output_tokens),
+                  })}{' '}
+            {priced && est.strings ? t('translate.estimate_cost', { low: money(est.low), high: money(est.high) }) : null}
           </p>
         ))}
         {!priced ? <p className="Phrasebook-bad">{t('translate.no_price')}</p> : <p className="helpText">{t('translate.estimate_help')}</p>}
@@ -292,10 +300,17 @@ export default class TranslateTab extends Component {
   }
 
   payload(dry) {
-    const namespaces = [];
-    Object.values(this.scans).forEach((scan) =>
-      (scan.groups || []).forEach((g) => !this.excluded.has(g.namespace) && !namespaces.includes(g.namespace) && namespaces.push(g.namespace))
-    );
+    // What each language's own table has ticked; null (all) until it loads.
+    const namespaces = {};
+    this.locales.forEach((code) => {
+      const excluded = this.excludedFor(code);
+      const scan = this.scans[code];
+      namespaces[code] = scan?.groups
+        ? this.pending(scan)
+            .map((g) => g.namespace)
+            .filter((ns) => !excluded.has(ns))
+        : null;
+    });
 
     return {
       dry,
@@ -366,6 +381,15 @@ export default class TranslateTab extends Component {
     if (!LOCALE.test(this.custom) || this.custom === 'en') return;
     this.toggleLocale(this.custom, true);
     this.custom = '';
+  }
+
+  /** The extensions with something to translate: the rows of a language's table. */
+  pending(scan) {
+    return scan.groups.filter((g) => g.missing + g.stale + g.identical > 0);
+  }
+
+  excludedFor(code) {
+    return (this.excluded[code] ??= new Set());
   }
 
   toggle(set, value, on) {
