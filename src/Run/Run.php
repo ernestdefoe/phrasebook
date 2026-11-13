@@ -37,6 +37,7 @@ use Flarum\Database\AbstractModel;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $finished_at
+ * @property Carbon|null $cleared_at
  */
 class Run extends AbstractModel
 {
@@ -50,6 +51,7 @@ class Run extends AbstractModel
         'next_attempt_at' => 'datetime',
         'locked_until' => 'datetime',
         'finished_at' => 'datetime',
+        'cleared_at' => 'datetime',
         'input_tokens' => 'integer',
         'output_tokens' => 'integer',
         'characters' => 'integer',

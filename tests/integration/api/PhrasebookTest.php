@@ -36,6 +36,16 @@ class PhrasebookTest extends TestCase
         $this->http = new FakeHttp();
     }
 
+    /**
+     * Starting and pushing do their work once per language: separate writes
+     * by design, capped at 20 languages a start (and 50 runs a push), not one
+     * per record. Eight languages must not read as an N+1.
+     */
+    protected function repeatedQueryThreshold(): int
+    {
+        return 20;
+    }
+
     private function call(string $method, string $path, ?int $actor = 1, array $body = [], array $query = []): ResponseInterface
     {
         $options = $actor ? ['authenticatedAs' => $actor] : [];
@@ -111,6 +121,7 @@ class PhrasebookTest extends TestCase
             ['GET', '/runs/1'],
             ['POST', '/runs/1/step'],
             ['POST', '/runs/1/save'],
+            ['POST', '/runs/push-all', ['ids' => [1]]],
             ['DELETE', '/runs/1'],
             ['GET', '/runs/1/items'],
             ['PATCH', '/runs/1/items/1', ['status' => 'accepted']],
@@ -256,6 +267,60 @@ class PhrasebookTest extends TestCase
             'namespaces' => ['nl' => ['validation'], 'de' => []],
         ]));
         $this->assertSame(['nl'], array_column($started['runs'], 'locale'));
+    }
+
+    #[Test]
+    public function accept_and_push_all_saves_every_finished_language_and_clears_it_from_the_list(): void
+    {
+        $this->call('POST', '/keys/openai', 1, ['key' => 'sk-x']);
+        $this->answerBatches();
+        $locales = ['nl', 'fr', 'de', 'es', 'it', 'ja', 'pl', 'sv'];
+
+        $started = $this->json($this->call('POST', '/runs', 1, [
+            'locales' => $locales, 'namespaces' => ['validation'], 'reasons' => ['missing'], 'provider' => 'openai', 'model' => 'gpt-test', 'budget' => 5,
+        ]));
+        $ids = array_column($started['runs'], 'id');
+        $this->assertCount(8, $ids);
+
+        foreach ($ids as $id) {
+            $this->assertSame('review', $this->finish($id)['run']['status']);
+        }
+
+        // One string in one language failed; one more language is still at work.
+        $items = $this->database()->table('phrasebook_items');
+        $failedId = $items->clone()->where('run_id', $ids[2])->value('id');
+        $items->clone()->where('id', $failedId)->update(['status' => 'failed', 'errors' => '[{"code":"argument_missing","detail":"attribute"}]']);
+        $this->database()->table('phrasebook_runs')->where('id', $ids[7])->update(['status' => 'running']);
+        $perRun = $items->clone()->where('run_id', $ids[0])->count();
+
+        $results = $this->json($this->call('POST', '/runs/push-all', 1, ['ids' => $ids]))['results'];
+
+        $this->assertCount(7, $results, 'a run still at work is left alone');
+        foreach ($results as $result) {
+            $failed = $result['id'] === $ids[2] ? 1 : 0;
+            $this->assertSame($perRun - $failed, $result['accepted']);
+            $this->assertSame($perRun - $failed, $result['saved']);
+            $this->assertSame($failed, $result['failed']);
+            $this->assertSame(! $failed, $result['cleared']);
+            $this->assertSame($perRun - $failed, $this->database()->table('fof_linguist_strings')->where('locale', $result['locale'])->count());
+        }
+
+        // Shown on the forum without a cache clear: every frontend is marked to
+        // rebuild its locale bundles, and Linguist no longer asks for a clear.
+        $this->assertSame('1', $this->database()->table('settings')->where('key', 'assets_dirty.forum')->value('value'));
+        $this->assertNull($this->database()->table('settings')->where('key', 'fof.linguist.should-clear-cache')->value('value'));
+
+        // The list keeps the language with a failure (and why) and the one at work.
+        $runs = $this->json($this->call('GET', ''))['runs'];
+        $open = array_values(array_filter($runs, fn ($run) => $run['clearedAt'] === null));
+        $this->assertEqualsCanonicalizing([$ids[2], $ids[7]], array_column($open, 'id'));
+        $this->assertSame(1, array_column($open, null, 'id')[$ids[2]]['counts']['failed']);
+        $failedItems = $this->json($this->call('GET', "/runs/{$ids[2]}/items", 1, [], ['status' => 'failed']))['items'];
+        $this->assertSame('argument_missing', $failedItems[0]['errors'][0]['code']);
+
+        // Pushing again does nothing to what is already saved.
+        $this->assertSame([], $this->json($this->call('POST', '/runs/push-all', 1, ['ids' => [$ids[0]]]))['results']);
+        $this->assertSame(422, $this->call('POST', '/runs/push-all', 1, ['ids' => ['x']])->getStatusCode());
     }
 
     #[Test]

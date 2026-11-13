@@ -4,6 +4,7 @@ import Button from 'flarum/common/components/Button';
 import Select from 'flarum/common/components/Select';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import humanTime from 'flarum/common/helpers/humanTime';
+import extractText from 'flarum/common/utils/extractText';
 import { api, download, errorText, failureText, known, money, number, t } from './api';
 
 const ACTIVE = ['queued', 'running', 'waiting'];
@@ -44,48 +45,143 @@ export default class RunsTab extends Component {
   }
 
   listView() {
-    const runs = this.attrs.app.data.runs;
+    const data = this.attrs.app.data;
+    const all = data.runs;
 
-    if (!runs.length) return <p className="helpText">{t('runs.none')}</p>;
+    if (!all.length) return <p className="helpText">{t('runs.none')}</p>;
+
+    const cleared = all.filter((run) => run.clearedAt);
+    const runs = this.showCleared ? all : all.filter((run) => !run.clearedAt);
+    const ready = this.pushable();
 
     return (
-      <div className="Phrasebook-tableWrap">
-        <table className="Phrasebook-table">
-          <thead>
-            <tr>
-              <th>{t('runs.language')}</th>
-              <th>{t('runs.model')}</th>
-              <th>{t('runs.status')}</th>
-              <th>{t('runs.spent')}</th>
-              <th>{t('runs.started')}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {runs.map((run) => (
+      <div>
+        <div className="Phrasebook-row">
+          <Button
+            className="Button Button--primary Phrasebook-wrap"
+            icon="fas fa-cloud-upload-alt"
+            loading={this.busy}
+            disabled={!ready.length || !data.linguist}
+            title={data.linguist ? null : t('runs.linguist_missing')}
+            onclick={() => this.pushAll(ready)}
+          >
+            {t('runs.push_all', { count: ready.length })}
+          </Button>
+          {cleared.length ? (
+            <Button className="Button Button--text" onclick={() => (this.showCleared = !this.showCleared)}>
+              {this.showCleared ? t('runs.hide_cleared') : t('runs.show_cleared', { count: cleared.length })}
+            </Button>
+          ) : null}
+        </div>
+        <p className="helpText">{t('runs.push_all_help')}</p>
+        {this.message ? (
+          <p className="Phrasebook-message" role="status">
+            {this.message}
+          </p>
+        ) : null}
+        <div className="Phrasebook-tableWrap">
+          <table className="Phrasebook-table">
+            <thead>
               <tr>
-                <td>
-                  {run.language} <span className="Phrasebook-muted">{run.locale}</span>
-                </td>
-                <td>{run.model}</td>
-                <td>
-                  <span className={`Phrasebook-status is-${run.status}`}>{t(`status.${run.status}`)}</span>
-                </td>
-                <td>
-                  {money(run.spent)} / {money(run.budget)}
-                </td>
-                <td>{run.createdAt ? humanTime(run.createdAt) : null}</td>
-                <td>
-                  <Button className="Button" onclick={() => this.attrs.app.go('runs', run.id)}>
-                    {t('runs.open')}
-                  </Button>
-                </td>
+                <th>{t('runs.language')}</th>
+                <th>{t('runs.model')}</th>
+                <th>{t('runs.status')}</th>
+                <th>{t('runs.strings')}</th>
+                <th>{t('runs.spent')}</th>
+                <th>{t('runs.started')}</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {runs.map((run) => {
+                const c = run.counts || {};
+
+                return (
+                  <tr className={run.clearedAt ? 'Phrasebook-done' : ''}>
+                    <td>
+                      {run.language} <span className="Phrasebook-muted">{run.locale}</span>
+                    </td>
+                    <td>{run.model}</td>
+                    <td>
+                      {run.clearedAt ? (
+                        <span className="Phrasebook-status is-saved">{t('runs.cleared')}</span>
+                      ) : (
+                        <span className={`Phrasebook-status is-${run.status}`}>{t(`status.${run.status}`)}</span>
+                      )}
+                    </td>
+                    <td>
+                      {[
+                        c.translated || c.accepted ? t('runs.to_push', { count: number((c.translated || 0) + (c.accepted || 0)) }) : null,
+                        c.failed ? <span className="Phrasebook-bad">{t('runs.failed', { count: number(c.failed) })}</span> : null,
+                        c.saved ? t('runs.saved', { count: number(c.saved) }) : null,
+                      ]
+                        .filter(Boolean)
+                        .map((part, i) => [i ? ' · ' : null, part])}
+                    </td>
+                    <td>
+                      {money(run.spent)} / {money(run.budget)}
+                    </td>
+                    <td>{run.createdAt ? humanTime(run.createdAt) : null}</td>
+                    <td>
+                      <Button className="Button" onclick={() => this.attrs.app.go('runs', run.id)}>
+                        {t('runs.open')}
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
+  }
+
+  /** Finished runs on the list with something to push. */
+  pushable() {
+    return this.attrs.app.data.runs.filter(
+      (run) => !run.clearedAt && run.status === 'review' && (run.counts?.translated || 0) + (run.counts?.accepted || 0) > 0
+    );
+  }
+
+  pushAll(runs) {
+    const lines = runs.map((run) => {
+      const c = run.counts;
+      return extractText(
+        t('runs.push_all_line', {
+          language: run.language,
+          locale: run.locale,
+          count: c.translated + (c.accepted || 0),
+          failed: c.failed ? extractText(t('runs.push_all_line_failed', { count: number(c.failed) })) : '',
+        })
+      );
+    });
+
+    if (!confirm(extractText(t('runs.push_all_confirm', { list: lines.join('\n') })))) return;
+
+    this.busy = true;
+    this.message = null;
+    api('POST', '/runs/push-all', { ids: runs.map((run) => run.id) })
+      .then(({ results }) => {
+        const saved = results.reduce((n, r) => n + r.saved, 0);
+        const kept = results
+          .filter((r) => !r.cleared)
+          .map((r) => (r.failed ? extractText(t('runs.kept_failed', { locale: r.locale, count: number(r.failed) })) : r.locale));
+        const missing = results.filter((r) => !r.installed).map((r) => r.locale);
+
+        this.message = [
+          t('runs.push_all_done', { saved, count: results.length }),
+          kept.length ? [' ', t('runs.push_all_kept', { list: kept.join(', ') })] : null,
+          missing.length ? [' ', t('runs.not_installed_list', { locale: missing.join(', ') })] : null,
+        ];
+
+        return this.attrs.app.reload();
+      })
+      .catch((error) => (this.message = errorText(error)))
+      .finally(() => {
+        this.busy = false;
+        m.redraw();
+      });
   }
 
   reviewView() {
@@ -373,6 +469,7 @@ export default class RunsTab extends Component {
       this.message = [
         t('runs.saved_message', { saved: number(result.saved), skipped: number(result.skipped) }),
         result.installed === false ? [' ', t('runs.not_installed', { locale: result.run.locale })] : null,
+        result.cleared ? [' ', t('runs.cleared_message')] : null,
       ];
     if (result.accepted !== undefined) this.message = t('runs.accepted_message', { count: number(result.accepted) });
     this.lastChange ??= Date.now();
@@ -457,7 +554,7 @@ export default class RunsTab extends Component {
   }
 
   action(name, body) {
-    if (name === 'save' && !confirm(t('runs.save_confirm', { count: number(this.counts.accepted), locale: this.run.locale }))) return;
+    if (name === 'save' && !confirm(extractText(t('runs.save_confirm', { count: number(this.counts.accepted), locale: this.run.locale })))) return;
 
     this.message = null;
     api('POST', `/runs/${this.runId}/${name}`, body)

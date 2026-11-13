@@ -223,11 +223,55 @@ class Runs
 
     /**
      * Writes the accepted strings into Linguist, where they override the
-     * language pack, and remembers which English each was made from.
+     * language pack, remembers which English each was made from, and has the
+     * forum show them without a cache clear.
      *
-     * @return array{saved: int, skipped: int, installed: bool}
+     * @return array{saved: int, skipped: int, installed: bool, cleared: bool}
      */
     public function saveToLinguist(Run $run): array
+    {
+        $result = $this->write($run);
+
+        if ($result['saved'] > 0) {
+            $this->refresh();
+        }
+
+        return $result;
+    }
+
+    /**
+     * "Accept and push all": every finished run accepts what came back valid
+     * and pushes it to Linguist, then the forum is refreshed once.
+     *
+     * @param list<int> $ids the runs the admin confirmed
+     *
+     * @return list<array{id: int, locale: string, accepted: int, saved: int, skipped: int, failed: int, installed: bool, cleared: bool}>
+     */
+    public function pushAll(array $ids): array
+    {
+        $out = [];
+        $saved = 0;
+
+        foreach (Run::query()->whereIn('id', $ids)->whereNull('cleared_at')->where('status', 'review')->orderBy('id')->get() as $run) {
+            $accepted = $this->acceptAll($run);
+            $result = $this->write($run);
+            $saved += $result['saved'];
+            $failed = $this->db->table('phrasebook_items')->where('run_id', $run->id)->where('status', 'failed')->count();
+
+            $out[] = ['id' => $run->id, 'locale' => $run->locale, 'accepted' => $accepted, 'failed' => $failed] + $result;
+        }
+
+        if ($saved > 0) {
+            $this->refresh();
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array{saved: int, skipped: int, installed: bool, cleared: bool}
+     */
+    private function write(Run $run): array
     {
         if (! $this->extensions->isEnabled('fof-linguist')) {
             throw new ValidationException(['target' => 'linguist_disabled']);
@@ -276,13 +320,52 @@ class Runs
                 $saved += count($ids);
             });
 
-        if ($saved > 0 && class_exists(\FoF\Linguist\Repositories\CacheStatusRepository::class)) {
-            $this->container->make(\FoF\Linguist\Repositories\CacheStatusRepository::class)->translationWasModified();
-        }
-
         // Linguist rows for a language no pack provides are stored and never
         // shown: say so, rather than let it look like it worked.
-        return ['saved' => $saved, 'skipped' => $skipped, 'installed' => $this->container->make(\Flarum\Locale\LocaleManager::class)->hasLocale($run->locale)];
+        return ['saved' => $saved, 'skipped' => $skipped, 'installed' => $this->container->make(\Flarum\Locale\LocaleManager::class)->hasLocale($run->locale), 'cleared' => $this->clearIfDone($run)];
+    }
+
+    /**
+     * Takes a run off the list once nothing in it needs the admin: every
+     * string is saved or rejected. Its saved strings stay for export.
+     */
+    private function clearIfDone(Run $run): bool
+    {
+        $left = $this->db->table('phrasebook_items')
+            ->where('run_id', $run->id)
+            ->whereIn('status', ['pending', 'translated', 'failed', 'accepted'])
+            ->exists();
+
+        if ($left || $run->active()) {
+            return false;
+        }
+
+        $this->db->table('phrasebook_runs')->where('id', $run->id)->update(['cleared_at' => Carbon::now()]);
+
+        return true;
+    }
+
+    /**
+     * New strings in Linguist reach the forum: the translator's compiled
+     * catalogues are dropped and every frontend is marked to rebuild its
+     * locale bundles on the next page load. Not a full cache clear, and the
+     * rebuild runs in a fresh request, as core does when an extension is
+     * enabled.
+     */
+    private function refresh(): void
+    {
+        if (class_exists(\FoF\Linguist\Repositories\CacheStatusRepository::class)) {
+            $status = $this->container->make(\FoF\Linguist\Repositories\CacheStatusRepository::class);
+            // Bumps the locale revision every instance checks.
+            $status->translationWasModified();
+        }
+
+        $this->container->make(\Flarum\Frontend\AssetManager::class)->markDirty();
+
+        // Linguist's "clear the cache" banner: nothing is left for it to do.
+        if (isset($status) && method_exists($status, 'cacheWasCleared')) {
+            $status->cacheWasCleared();
+        }
     }
 
     /**

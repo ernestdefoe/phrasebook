@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+
+- **Accept and push all.** One button on the Runs tab accepts every valid translation in each finished run and saves it to Linguist, after a confirm that lists each language and how many strings it will save.
+- **Pushed languages are cleared from the list.** A run with nothing left to review leaves the Runs list; one with failed strings stays, showing how many failed, and each failed string keeps its reason. "Show cleared runs" brings cleared ones back, and their strings stay available for export.
+- **New strings show on the forum without a cache clear.** After saving to Linguist, the forum rebuilds its translations on the next page load.
+- **Tick only extensions with missing strings**, in one language's table or in every language at once.
+- The Runs list shows each run's strings: to push, failed and saved.
+- Error text uses Flarum's error color, so it shows in light themes too.
+
+Thanks @"dutchbavarian"#p269888 for the suggestions.
+
 ## 1.0.2
 
 - Every extension is listed under every language. An extension with nothing left to translate is shown as up to date (greyed out, can't be ticked) instead of disappearing, so a language whose pack covers most extensions, like Chinese (Simplified), no longer looks like it is missing installed extensions.

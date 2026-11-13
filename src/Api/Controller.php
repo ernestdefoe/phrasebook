@@ -101,6 +101,7 @@ abstract class Controller implements RequestHandlerInterface
             'tone' => $run->tone,
             'createdAt' => $run->created_at?->toIso8601String(),
             'finishedAt' => $run->finished_at?->toIso8601String(),
+            'clearedAt' => $run->cleared_at?->toIso8601String(),
         ];
     }
 }

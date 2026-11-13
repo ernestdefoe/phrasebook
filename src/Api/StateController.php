@@ -12,6 +12,7 @@ use Ernestdefoe\Phrasebook\Settings\Vault;
 use Ernestdefoe\Phrasebook\Strings\Languages;
 use Flarum\Extension\ExtensionManager;
 use Flarum\Locale\LocaleManager;
+use Illuminate\Database\ConnectionInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -26,7 +27,8 @@ class StateController extends Controller
         private readonly Pricing $pricing,
         private readonly Runs $runs,
         private readonly LocaleManager $locales,
-        private readonly ExtensionManager $extensions
+        private readonly ExtensionManager $extensions,
+        private readonly ConnectionInterface $db
     ) {
     }
 
@@ -83,7 +85,34 @@ class StateController extends Controller
             'linguist' => $this->extensions->isEnabled('fof-linguist'),
             'linguistOutdated' => $this->extensions->isEnabled('fof-linguist') && self::linguistOutdated(),
             'zip' => Exporter::zipAvailable(),
-            'runs' => Run::query()->orderByDesc('id')->limit(20)->get()->map(fn (Run $run) => self::present($run))->all(),
+            'runs' => $this->runsWithCounts(),
         ];
+    }
+
+    /**
+     * The runs still on the list, newest first, then the last few cleared
+     * ones; each with its strings counted by status, in one query.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function runsWithCounts(): array
+    {
+        $runs = Run::query()->whereNull('cleared_at')->orderByDesc('id')->limit(50)->get()
+            ->concat(Run::query()->whereNotNull('cleared_at')->orderByDesc('id')->limit(20)->get());
+        $counts = [];
+
+        if ($runs->isNotEmpty()) {
+            $rows = $this->db->table('phrasebook_items')
+                ->whereIn('run_id', $runs->pluck('id')->all())
+                ->groupBy('run_id', 'status')
+                ->selectRaw('run_id, status, count(*) as total')
+                ->get();
+
+            foreach ($rows as $row) {
+                $counts[(int) $row->run_id][(string) $row->status] = (int) $row->total;
+            }
+        }
+
+        return $runs->map(fn (Run $run) => self::present($run) + ['counts' => $counts[$run->id] ?? []])->all();
     }
 }

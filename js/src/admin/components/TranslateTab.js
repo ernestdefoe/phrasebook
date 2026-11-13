@@ -73,6 +73,13 @@ export default class TranslateTab extends Component {
           <p className="helpText">{data.locales.length ? t('translate.languages_help') : t('translate.no_packs')}</p>
         </div>
 
+        {this.locales.length > 1 ? (
+          <div className="Phrasebook-row">
+            <Button className="Button Phrasebook-wrap" icon="fas fa-filter" onclick={() => this.onlyMissing(this.locales)}>
+              {t('translate.only_missing_all', { count: this.locales.length })}
+            </Button>
+          </div>
+        ) : null}
         {this.locales.map((code) => this.scanView(code))}
 
         <div className="Form-group">
@@ -218,6 +225,15 @@ export default class TranslateTab extends Component {
           })}
         </p>
         {groups.length ? null : <p>{t('translate.complete')}</p>}
+        {groups.some((g) => g.missing) ? (
+          <Button
+            className="Button Button--text Phrasebook-wrap Phrasebook-onlyMissing"
+            icon="fas fa-filter"
+            onclick={() => this.onlyMissing([code])}
+          >
+            {t('translate.only_missing')}
+          </Button>
+        ) : null}
         {scan.groups.length ? (
           <div className="Phrasebook-tableWrap">
             <table className="Phrasebook-table">
@@ -397,6 +413,16 @@ export default class TranslateTab extends Component {
 
   excludedFor(code) {
     return (this.excluded[code] ??= new Set());
+  }
+
+  /** Ticks only the extensions with missing strings, in each of these languages. */
+  onlyMissing(codes) {
+    codes.forEach((code) => {
+      const scan = this.scans[code];
+      if (!scan?.groups) return;
+      const excluded = this.excludedFor(code);
+      this.pending(scan).forEach((g) => this.toggle(excluded, g.namespace, g.missing === 0));
+    });
   }
 
   toggle(set, value, on) {

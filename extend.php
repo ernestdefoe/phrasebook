@@ -31,6 +31,7 @@ return [
         ->post('/phrasebook/test/{provider}', 'phrasebook.test', Api\TestController::class)
         ->get('/phrasebook/scan', 'phrasebook.scan', Api\ScanController::class)
         ->post('/phrasebook/runs', 'phrasebook.runs.start', Api\StartController::class)
+        ->post('/phrasebook/runs/push-all', 'phrasebook.runs.push_all', Api\PushAllController::class)
         ->get('/phrasebook/runs/{id:\d+}', 'phrasebook.runs.show', Api\RunController::class)
         ->post('/phrasebook/runs/{id:\d+}/{action:step|resume|cancel|accept-all|save}', 'phrasebook.runs.action', Api\RunController::class)
         ->delete('/phrasebook/runs/{id:\d+}', 'phrasebook.runs.delete', Api\RunController::class)
