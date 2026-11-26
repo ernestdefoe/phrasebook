@@ -85,18 +85,21 @@ export async function download(path, body, fallbackName) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** A translation if one exists for this key, else null. */
 /**
  * A language's name in the admin's own language ("Deutsch" in a German admin),
  * so it can be translated like everything else; the server's English name
- * where the browser has none.
+ * where the browser has none, or the code isn't a tag it can read.
  */
 export function languageName(code, fallback) {
-  const names =
-    typeof Intl.DisplayNames === 'function'
-      ? new Intl.DisplayNames([app.translator.getLocale() || 'en'], { type: 'language', fallback: 'none' })
-      : null;
-  return names?.of(code.replace(/_/g, '-')) || fallback || code;
+  if (typeof Intl.DisplayNames !== 'function') return fallback || code;
+
+  try {
+    const names = new Intl.DisplayNames([app.translator.getLocale() || 'en'], { type: 'language', fallback: 'none' });
+    return names.of(code.replace(/_/g, '-')) || fallback || code;
+  } catch (e) {
+    // A malformed tag ("xx_YY_bad") throws a RangeError: show the plain name instead of breaking the tab.
+    return fallback || code;
+  }
 }
 
 /** An extension's title; "Validation messages" is Phrasebook's own label, so it is translated. */
@@ -104,6 +107,7 @@ export function groupTitle(group) {
   return group.namespace === 'validation' ? t('translate.validation_title') : group.title;
 }
 
+/** A translation if one exists for this key, else null. */
 export function known(key, params) {
   const text = t(key, params);
   return String(text) === `ernestdefoe-phrasebook.admin.${key}` ? null : text;
