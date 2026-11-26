@@ -3,7 +3,7 @@ import Component from 'flarum/common/Component';
 import Button from 'flarum/common/components/Button';
 import Select from 'flarum/common/components/Select';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
-import { api, errorText, jsonSetting, money, number, SETTING, t } from './api';
+import { api, errorText, groupTitle, jsonSetting, languageName, money, number, SETTING, t } from './api';
 
 const LOCALE = /^[a-z]{2,3}(?:[_-][A-Z][a-z]{3})?(?:[_-](?:[A-Z]{2}|\d{3}))?$/;
 
@@ -53,7 +53,7 @@ export default class TranslateTab extends Component {
             {data.locales.map((l) => this.localeCheck(l.code, `${l.name} (${l.code})`))}
             {this.locales
               .filter((code) => !data.locales.some((l) => l.code === code))
-              .map((code) => this.localeCheck(code, `${code} ${t('translate.new_pack')}`))}
+              .map((code) => this.localeCheck(code, `${languageName(code)} (${code}) ${t('translate.new_pack')}`))}
           </div>
           <div className="Phrasebook-row">
             <input
@@ -215,7 +215,7 @@ export default class TranslateTab extends Component {
 
     return (
       <div className="Form-group">
-        <label>{t('translate.scan_title', { language: scan.language, code })}</label>
+        <label>{t('translate.scan_title', { language: languageName(code, scan.language), code })}</label>
         <p className="helpText">
           {t('translate.scan_summary', {
             missing: number(sum('missing')),
@@ -265,14 +265,14 @@ export default class TranslateTab extends Component {
                       <td>
                         <input
                           type="checkbox"
-                          aria-label={g.title}
+                          aria-label={groupTitle(g)}
                           disabled={done}
                           checked={!done && !excluded.has(g.namespace)}
                           onchange={(e) => this.toggle(excluded, g.namespace, !e.target.checked)}
                         />
                       </td>
                       <td>
-                        {g.title} <span className="Phrasebook-muted">{g.namespace}</span>
+                        {groupTitle(g)} <span className="Phrasebook-muted">{g.namespace}</span>
                         {done ? <span className="Phrasebook-muted"> · {t('translate.up_to_date')}</span> : null}
                       </td>
                       <td>{number(g.missing)}</td>

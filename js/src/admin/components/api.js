@@ -86,6 +86,24 @@ export async function download(path, body, fallbackName) {
 }
 
 /** A translation if one exists for this key, else null. */
+/**
+ * A language's name in the admin's own language ("Deutsch" in a German admin),
+ * so it can be translated like everything else; the server's English name
+ * where the browser has none.
+ */
+export function languageName(code, fallback) {
+  const names =
+    typeof Intl.DisplayNames === 'function'
+      ? new Intl.DisplayNames([app.translator.getLocale() || 'en'], { type: 'language', fallback: 'none' })
+      : null;
+  return names?.of(code.replace(/_/g, '-')) || fallback || code;
+}
+
+/** An extension's title; "Validation messages" is Phrasebook's own label, so it is translated. */
+export function groupTitle(group) {
+  return group.namespace === 'validation' ? t('translate.validation_title') : group.title;
+}
+
 export function known(key, params) {
   const text = t(key, params);
   return String(text) === `ernestdefoe-phrasebook.admin.${key}` ? null : text;

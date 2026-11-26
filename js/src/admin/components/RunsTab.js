@@ -5,7 +5,7 @@ import Select from 'flarum/common/components/Select';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import humanTime from 'flarum/common/helpers/humanTime';
 import extractText from 'flarum/common/utils/extractText';
-import { api, download, errorText, failureText, known, money, number, t } from './api';
+import { api, download, errorText, failureText, known, languageName, money, number, t } from './api';
 
 const ACTIVE = ['queued', 'running', 'waiting'];
 const STATUSES = ['translated', 'failed', 'pending', 'accepted', 'rejected', 'saved'];
@@ -99,7 +99,7 @@ export default class RunsTab extends Component {
                 return (
                   <tr className={run.clearedAt ? 'Phrasebook-done' : ''}>
                     <td>
-                      {run.language} <span className="Phrasebook-muted">{run.locale}</span>
+                      {languageName(run.locale, run.language)} <span className="Phrasebook-muted">{run.locale}</span>
                     </td>
                     <td>{run.model}</td>
                     <td>
@@ -149,7 +149,7 @@ export default class RunsTab extends Component {
       const c = run.counts;
       return extractText(
         t('runs.push_all_line', {
-          language: run.language,
+          language: languageName(run.locale, run.language),
           locale: run.locale,
           count: c.translated + (c.accepted || 0),
           failed: c.failed ? extractText(t('runs.push_all_line_failed', { count: number(c.failed) })) : '',
@@ -200,7 +200,7 @@ export default class RunsTab extends Component {
           </a>
         </p>
         <h3>
-          {run.language} <span className="Phrasebook-muted">{run.locale}</span> · {run.model}
+          {languageName(run.locale, run.language)} <span className="Phrasebook-muted">{run.locale}</span> · {run.model}
         </h3>
 
         <div className="Phrasebook-progress" role="progressbar" aria-valuemin="0" aria-valuemax={total} aria-valuenow={done}>

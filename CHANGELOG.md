@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1
+
+- Language names in the admin (table headings, the Runs list, a new language you add) now show in the admin's own language instead of always in English.
+- "Validation messages", the row for Laravel's validation strings, can now be translated.
+- A new test checks that every piece of text in the admin comes from the locale file, so Phrasebook can translate all of itself.
+
+Thanks @"dutchbavarian"#p269890 for the report.
+
 ## 1.1.0
 
 - **Accept and push all.** One button on the Runs tab accepts every valid translation in each finished run and saves it to Linguist, after a confirm that lists each language and how many strings it will save.
